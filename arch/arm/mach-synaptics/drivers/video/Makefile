@@ -29,6 +29,8 @@ PLATFORM_CPPFLAGS += -I$(srctree)/arch/arm/mach-synaptics/drivers/video/lcdc/inc
 PLATFORM_CPPFLAGS += -I$(srctree)/arch/arm/mach-synaptics/drivers/video/dhub/
 PLATFORM_CPPFLAGS += -I$(srctree)/arch/arm/mach-synaptics/drivers/video/dhub/myna2/
 PLATFORM_CPPFLAGS += -I$(srctree)/arch/arm/mach-synaptics/drivers/video/dsi
+PLATFORM_CPPFLAGS += -I$(srctree)/drivers/video
+PLATFORM_CPPFLAGS += -I$(srctree)/arch/arm/mach-synaptics/drivers/video/bridge/
 
 PLATFORM_CPPFLAGS += -I$(srctree)/arch/arm/mach-synaptics/drivers/video/panel/$(CONFIG_PANEL_CFG)/
 
@@ -82,6 +84,7 @@ ifdef CONFIG_TARGET_MYNA2
     obj-y += vpp_ca/avpll/myna2/diag_pll.o
     obj-y += asxxx/lcdc_display.o
     obj-y += hal_vpp_ntz.o
+    obj-$(CONFIG_SYNA_DRM_BRIDGE_LT9611) += bridge/lt9611.o
 endif
 
 PLATFORM_CPPFLAGS += $(B_CHIP_CFLAGS)

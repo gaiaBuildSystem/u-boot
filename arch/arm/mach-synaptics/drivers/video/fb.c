@@ -39,6 +39,10 @@
 #include "vpp.h"
 #include "panelcfg.h"
 #include "command.h"
+#include "videomodes.h"
+#include <power/regulator.h>
+#include "video_bridge.h"
+#include "lt9611.h"
 
 #define READ_OF_NODE(key, param) {				\
 	ofnode_read_u32(node, #param, &value);			\
@@ -48,6 +52,9 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static struct udevice *backlight;
 static struct udevice *regulator;
+static struct udevice *video_bridge;
+
+struct ctfb_res_modes video_mode;
 
 typedef struct cmd_tbl_s	cmd_tbl_t;
 struct gpio_desc enable_gpio;
@@ -230,6 +237,16 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 	pCmdHeader = (VPP_MIPI_CMD_HEADER*)pResCfg->vppMipiCmd.pcmd;
 	pCmdHeader->cmd_type = VPP_CMD_TYPE_INIT;
 	pCmdHeader->cmd_size = pResCfg->vppMipiCmd.bufsize;
+
+	video_mode.xres = pResCfg->infoparams.resInfo.active_width;		/* visible resolution		*/
+	video_mode.yres = pResCfg->infoparams.resInfo.active_height;
+	video_mode.pixclock_khz = pResCfg->infoparams.tgParams.pixel_clock;	/* pixel clock in kHz           */
+	video_mode.left_margin = pResCfg->infoparams.resInfo.hfrontporch;	/* time from sync to picture	*/
+	video_mode.right_margin = pResCfg->infoparams.resInfo.hbackporch;	/* time from picture to sync	*/
+	video_mode.upper_margin = pResCfg->infoparams.resInfo.vfrontporch;	/* time from sync to picture	*/
+	video_mode.lower_margin = pResCfg->infoparams.resInfo.vbackporch;
+	video_mode.hsync_len = pResCfg->infoparams.resInfo.hsyncwidth;		/* length of horizontal sync	*/
+	video_mode.vsync_len = pResCfg->infoparams.resInfo.vsyncwidth;		/* length of vertical sync	*/
 
 	return 0;
 }
@@ -463,6 +480,16 @@ static int do_show_logo(cmd_tbl_t *cmdtp, int flag, int argc,
 	ret = uclass_get_device(UCLASS_PANEL_BACKLIGHT, 0, &backlight);
 	if (!ret)
 		backlight_enable(backlight);
+
+#ifdef CONFIG_VIDEO_BRIDGE
+	ret = uclass_get_device(UCLASS_VIDEO_BRIDGE, 0, &video_bridge);
+	if (!ret) {
+		video_bridge_attach(video_bridge);
+#ifdef CONFIG_SYNA_DRM_BRIDGE_LT9611
+		lt9611_bridge_modeset(video_bridge, &video_mode);
+#endif
+	}
+#endif
 
 	MV_VPP_Stop();
 

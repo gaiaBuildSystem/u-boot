@@ -3,10 +3,17 @@ config VIDEO_SYNA
 	depends on ARCH_SYNAPTICS
 	depends on VIDEO
 	help
-	  This enables support for Synaptics display for Edge Soc family
+		This enables support for Synaptics display for Edge Soc family
 
 config PANEL_CFG
-        string "Panel Config file"
-        depends on VIDEO_SYNA
-        help
-          Configures the panel information from Header file provided.
+	string "Panel Config file"
+	depends on VIDEO_SYNA
+	help
+		Configures the panel information from Header file provided.
+
+config SYNA_DRM_BRIDGE_LT9611
+	bool "Syna driver based LT9611 bridge"
+	select VIDEO_BRIDGE
+	depends on VIDEO_SYNA
+	help
+		Configures Syna driver based LT9611 bridge support
