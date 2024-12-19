@@ -206,76 +206,76 @@ struct phy_pad_setting pad_setting_3v3[PHY_PAD_SETTING_NUM] = {
 
 #ifdef CONFIG_TARGET_PLATYPUS
 u8 phy_delay[MMC_MODES_END] = {
-	127, /* MMC_LEGACY */
+	40,  /* MMC_LEGACY */
 	127, /* SD_LEGACY */
-	100, /* MMC_HS */
+	40,  /* MMC_HS */
 	35,  /* SD_HS */
-	100, /* MMC_HS_52 */
-	90,  /* MMC_DDR_52 */
+	40,  /* MMC_HS_52 */
+	40,  /* MMC_DDR_52 */
 	100, /* UHS_SDR12 */
 	100, /* UHS_SDR25 */
 	100, /* UHS_SDR50 */
 	43,  /* UHS_DDR50 */
 	43,  /* UHS_SDR104 */
 	40,  /* MMC_HS_200 */
-	36,  /* MMC_HS_400 */
+	20,  /* MMC_HS_400 */
 	0,   /* MMC_HS_400_ES */
 };
 #endif
 
 #ifdef CONFIG_TARGET_DOLPHIN
 u8 phy_delay[MMC_MODES_END] = {
-	127, /* MMC_LEGACY */
+	40,  /* MMC_LEGACY */
 	127, /* SD_LEGACY */
-	100, /* MMC_HS */
+	40,  /* MMC_HS */
 	35,  /* SD_HS */
-	100, /* MMC_HS_52 */
-	75,  /* MMC_DDR_52 */
+	40,  /* MMC_HS_52 */
+	40,  /* MMC_DDR_52 */
 	100, /* UHS_SDR12 */
 	100, /* UHS_SDR25 */
 	100, /* UHS_SDR50 */
 	95,  /* UHS_DDR50 */
 	50,  /* UHS_SDR104 */
-	42,  /* MMC_HS_200 */
-	34,  /* MMC_HS_400 */
+	40,  /* MMC_HS_200 */
+	20,  /* MMC_HS_400 */
 	0,   /* MMC_HS_400_ES */
 };
 #endif
 
 #ifdef CONFIG_TARGET_MYNA2
 u8 phy_delay[MMC_MODES_END] = {
-	127,  /* MMC_LEGACY */
+	40,  /* MMC_LEGACY */
 	127, /* SD_LEGACY */
-	100, /* MMC_HS */
+	40,  /* MMC_HS */
 	35,  /* SD_HS */
-	100, /* MMC_HS_52 */
-	60,  /* MMC_DDR_52 */
+	40,  /* MMC_HS_52 */
+	40,  /* MMC_DDR_52 */
 	100, /* UHS_SDR12 */
 	100, /* UHS_SDR25 */
 	100, /* UHS_SDR50 */
 	43,  /* UHS_DDR50 */
 	43,  /* UHS_SDR104 */
-	42,  /* MMC_HS_200 */
-	21,  /* MMC_HS_400 */
+	40,  /* MMC_HS_200 */
+	20,  /* MMC_HS_400 */
 	0,   /* MMC_HS_400_ES */
 };
 #endif
 
 #ifdef CONFIG_TARGET_KLAMATH
 u8 phy_delay[MMC_MODES_END] = {
-	127,  /* MMC_LEGACY */
+	40,  /* MMC_LEGACY */
 	127, /* SD_LEGACY */
-	100, /* MMC_HS */
+	40,  /* MMC_HS */
 	35,  /* SD_HS */
-	100, /* MMC_HS_52 */
-	60,  /* MMC_DDR_52 */
+	40,  /* MMC_HS_52 */
+	40,  /* MMC_DDR_52 */
 	100, /* UHS_SDR12 */
 	100, /* UHS_SDR25 */
 	100, /* UHS_SDR50 */
 	43,  /* UHS_DDR50 */
 	43,  /* UHS_SDR104 */
-	42,  /* MMC_HS_200 */
-	21,  /* MMC_HS_400 */
+	40,  /* MMC_HS_200 */
+	20,  /* MMC_HS_400 */
 	0,   /* MMC_HS_400_ES */
 };
 #endif
