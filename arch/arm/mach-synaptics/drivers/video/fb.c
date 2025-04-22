@@ -43,11 +43,37 @@
 #include <power/regulator.h>
 #include "video_bridge.h"
 #include "lt9611.h"
+#include "fastboot_syna.h"
+#include "misc_syna.h"
+#include <dm/uclass.h>
+#include <dm/device.h>
+#include <dm/ofnode.h>
+#include <dm/device-internal.h>
+#include <dm/util.h>
+#include <dm/lists.h>
 
 #define READ_OF_NODE(key, param) {				\
-	ofnode_read_u32(node, #param, &value);			\
-	key = value;						\
+	prop = fdt_getprop(blob, offset, #param, &len);		\
+	if(prop && (len >= sizeof(u32))) {			\
+		key = fdt32_to_cpu(prop[0]); 			\
+	}							\
 }
+
+#define READ_OF_8_NODE(key, param) {			\
+	prop = fdt_getprop(blob, offset, #param, &len);	\
+	if(prop && (len >= sizeof(u8))) {		\
+		key = prop[0]; 				\
+	}						\
+}
+
+#define FDTO_SIZE 0x2000
+#define FDT_MAX_SIZE 0x8000  /* Max size to increase FDT into - 32KB is usually enough */
+#define BASE_DTB_WORKING_MEMORY	0x10000000 /* Memory for overlay'd DTB - hopefully safe !?!*/
+
+#define ROOTFS_A "rootfs_a"
+#define ROOTFS_B "rootfs_b"
+
+#define DSI_PANEL_DTS_PATH	"/soc/drm/dsi_panel"
 DECLARE_GLOBAL_DATA_PTR;
 
 static struct udevice *backlight;
@@ -67,18 +93,72 @@ static int berlin_fb_sync(struct udevice *dev)
 	return MV_VPP_Display_Frame(priv, pVppBuf, DISPLAY_1);
 }
 
+extern int f_mmc_get_part_index(int mmc_dev, char *part_name);
+
+/* Function to overlay the uboot working FDT with the DTBO
+ * corresponding to the "dtbo" environment variable
+ * Need to call this as early in the uboot init stage as possible
+ */
+int setup_uboot_fdt_overlay(void)
+{
+	void *fdto_addr;
+	char cmd[512];
+	char *s;
+	int part_index, ret;
+	const void *blob = gd->fdt_blob;
+	void *new_fdt = (void *) BASE_DTB_WORKING_MEMORY;
+
+	s = env_get("dtbo");
+
+	if (!s) {
+		/* no dtbo found, exit uboot fdt overlay!*/
+		return -1;
+	}
+
+	fdto_addr = malloc(FDTO_SIZE);
+	if (!fdto_addr) {
+		printf("failed to malloc memory!\n");
+		return -1;
+	}
+
+	if (0 == get_current_slot())
+		part_index = f_mmc_get_part_index(get_mmc_active_dev(), ROOTFS_A);
+	else
+		part_index = f_mmc_get_part_index(get_mmc_active_dev(), ROOTFS_B);
+
+	sprintf(cmd, "ext4load mmc %x:%x %p /boot/%s", get_mmc_active_dev(), part_index, fdto_addr, s);
+	ret = run_command(cmd, 0);
+	if (ret) {
+		printf("failed to load fdto (cmd: %s)!\n", cmd);
+		goto err;
+	}
+
+	ret = fdt_open_into(blob, new_fdt, FDT_MAX_SIZE);
+	if (ret) {
+		printf("Failed to resize FDT: %s\n", fdt_strerror(ret));
+		goto err;
+	}
+
+	ret = fdt_overlay_apply(new_fdt, fdto_addr);
+	if (ret) {
+		printf("ERROR: Failed to apply overlay: %s\n", fdt_strerror(ret));
+		goto err;
+	}
+
+	/* Now the overlay applied successfully, update global blob*/
+	gd->fdt_blob = new_fdt;
+err:
+	free(fdto_addr);
+	return ret;
+}
+
 int syna_parse_lcdc_dt(struct udevice *dev)
 {
 	struct berlin_fb_priv *priv = dev_get_priv(dev);
 	PANEL_TIMING_INFO *pTimingInfo;
-	UINT32 value;
-	ofnode node;
-
-	node = dev_read_subnode(dev, "lcdc_panel");
-	if (!ofnode_valid(node) || !ofnode_is_enabled(node)) {
-		debug("lcdc_panel subnode not found\n");
-		return 0;
-	}
+	int offset, parent_offset, len;
+	const u32 *prop;
+	const void *blob = gd->fdt_blob;
 
 	priv->lcdc_config_data = malloc(sizeof(struct lcdc_config));
 	if (!priv->lcdc_config_data) {
@@ -86,7 +166,22 @@ int syna_parse_lcdc_dt(struct udevice *dev)
 		return -ENOMEM;
 	}
 
-	dev_read_u32(dev, "irqno", &priv->lcdc_config_data->irqno);
+	/* After overlay, use fdt_ API's to work on the "live" FDT in memory*/
+	if((parent_offset = fdt_path_offset(blob, "/soc/drm")) < 0) {
+		printf("Parent node not found: %d\n", parent_offset);
+		return 0;
+	}
+
+	prop = fdt_getprop(blob, parent_offset, "irqno", &len);
+        if(!prop || (len < sizeof(u32)))
+                debug("Cannot find property irqno\n");
+        else
+                priv->lcdc_config_data->irqno = fdt32_to_cpu(prop[0]);
+
+	if((offset = fdt_subnode_offset(blob, parent_offset, "lcdc_panel")) < 0) {
+		debug("fdt subnode offset not found for lcdc_panel\n");
+		return 0;
+	}
 
 	pTimingInfo = &priv->lcdc_config_data->pTimingInfo[DISPLAY_TYPE_TFT];
 
@@ -116,9 +211,10 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 	VPP_MIPI_LOAD_CONFIG *pLoadcfg;
         VPP_MIPI_CMD_HEADER  *pCmdHeader;
         VPP_MIPI_CONFIG_PARAMS *pResCfg;
-	UINT32 value;
-	ofnode node;
 	int ret;
+	int cmdsize, offset, len;
+	const u32 *prop;
+	UINT8 *dts_panel_commands = NULL;
 
 	ret = fdt_node_offset_by_compatible(blob, -1, "syna,mipi-dsi");
 	if(ret < 0) {
@@ -126,9 +222,9 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 		return 0;
 	}
 
-	node = dev_read_subnode(dev, "dsi_panel");
-	if (!ofnode_is_enabled(node)) {
-		debug("dsi_panel subnode not found\n");
+	/* After overlay, use fdt_ API's to work on the "live" FDT in memory*/
+	if((offset = fdt_path_offset(blob, DSI_PANEL_DTS_PATH)) < 0) {
+		printf("DSI node not found (%d) at %s\n", offset, DSI_PANEL_DTS_PATH);
 		return 0;
 	}
 
@@ -149,9 +245,16 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 		return -ENOMEM;
 	}
 
-	gpio_request_by_name_nodev(node, "mipirst-gpio", 0, &priv->enable,
-					GPIOD_IS_OUT);
-	dm_gpio_set_value(&priv->enable, 0);
+	ofnode node = ofnode_path(DSI_PANEL_DTS_PATH);
+	if (!ofnode_valid(node)) {
+		printf("Invalid ofnode for %s\n", DSI_PANEL_DTS_PATH);
+	} else {
+		/* If the mipirst-gpio available, set it accordingly */
+		if((ret = gpio_request_by_name_nodev(node, "mipirst-gpio", 0, &priv->enable,
+					GPIOD_IS_OUT)) >= 0) {
+			dm_gpio_set_value(&priv->enable, 0);
+		}
+	}
 
 	memset(pMipiConfig->mipi_resinfo_params, 0, sizeof(VPP_MIPI_CONFIG_PARAMS));
 
@@ -176,44 +279,62 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 	READ_OF_NODE(pResCfg->infoparams.resInfo.flag_3d, FLAG_3D);
 	READ_OF_NODE(pResCfg->infoparams.resInfo.freq, FREQ);
 	READ_OF_NODE(pResCfg->infoparams.resInfo.pts_per_cnt_4, PTS_PER_4);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_vb_min, VB_MIN);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_hb_min, HB_MIN);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_size_v_off_p, V_OFF);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_size_h_off_p, H_OFF);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_hb_vop_off, HB_VOP_OFF);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_vb0_vop_off, VB_VOP_OFF);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_hb_be, HB_BE);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_vb0_be, VB_BE);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_vb_fp, VB_FP);
-	READ_OF_NODE(pResCfg->infoparams.tgParams.tg_hb_fp, HB_FP);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_vb_min, VB_MIN);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_hb_min, HB_MIN);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_size_v_off_p, V_OFF);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_size_h_off_p, H_OFF);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_hb_vop_off, HB_VOP_OFF);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_vb0_vop_off, VB_VOP_OFF);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_hb_be, HB_BE);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_vb0_be, VB_BE);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_vb_fp, VB_FP);
+	READ_OF_8_NODE(pResCfg->infoparams.tgParams.tg_hb_fp, HB_FP);
 	READ_OF_NODE(pResCfg->infoparams.tgParams.pixel_clock, PIXEL_CLOCK);
 	READ_OF_NODE(pResCfg->infoparams.resInfo.width, HTOTAL);
 
 	READ_OF_NODE(pResCfg->initparams.byte_clock, Byte_clk);
-	READ_OF_NODE(pResCfg->initparams.no_of_lanes, Lanes);
-	READ_OF_NODE(pResCfg->initparams.video_mode, Vid_mode);
-	READ_OF_NODE(pResCfg->initparams.receive_ack_packets, Recv_ack);
-	READ_OF_NODE(pResCfg->initparams.is_18_loosely, Loosely_18);
-	READ_OF_NODE(pResCfg->initparams.h_polarity, H_polarity);
-	READ_OF_NODE(pResCfg->initparams.v_polarity, V_Polarity);
-	READ_OF_NODE(pResCfg->initparams.data_en_polarity, Data_Polarity);
-	READ_OF_NODE(pResCfg->initparams.eotp_tx_en, Eotp_tx);
-	READ_OF_NODE(pResCfg->initparams.eotp_rx_en, Eotp_rx);
-	READ_OF_NODE(pResCfg->initparams.non_continuous_clock, non-Continuous_clk);
-	READ_OF_NODE(pResCfg->initparams.dpi_lp_cmd_en, dpi_lp_cmd);
-	READ_OF_NODE(pResCfg->initparams.color_coding, Color_coding);
+	READ_OF_8_NODE(pResCfg->initparams.no_of_lanes, Lanes);
+	READ_OF_8_NODE(pResCfg->initparams.video_mode, Vid_mode);
+	READ_OF_8_NODE(pResCfg->initparams.receive_ack_packets, Recv_ack);
+	READ_OF_8_NODE(pResCfg->initparams.is_18_loosely, Loosely_18);
+	READ_OF_8_NODE(pResCfg->initparams.h_polarity, H_polarity);
+	READ_OF_8_NODE(pResCfg->initparams.v_polarity, V_Polarity);
+	READ_OF_8_NODE(pResCfg->initparams.data_en_polarity, Data_Polarity);
+	READ_OF_8_NODE(pResCfg->initparams.eotp_tx_en, Eotp_tx);
+	READ_OF_8_NODE(pResCfg->initparams.eotp_rx_en, Eotp_rx);
+	READ_OF_8_NODE(pResCfg->initparams.non_continuous_clock, non-Continuous_clk);
+	READ_OF_8_NODE(pResCfg->initparams.dpi_lp_cmd_en, dpi_lp_cmd);
+	READ_OF_8_NODE(pResCfg->initparams.color_coding, Color_coding);
 	READ_OF_NODE(pResCfg->initparams.no_of_chunks, Chunks);
 	READ_OF_NODE(pResCfg->initparams.null_packet_size, Null_Pkt);
-	READ_OF_NODE(pResCfg->initparams.data_lane_polarity, Data_Lane_Polarity);
-	READ_OF_NODE(pResCfg->initparams.virtual_channel, virtual_chan);
-	READ_OF_NODE(pResCfg->initparams.clk_lane_polarity, Clk_Lane_Polarity);
+	READ_OF_8_NODE(pResCfg->initparams.data_lane_polarity, Data_Lane_Polarity);
+	READ_OF_8_NODE(pResCfg->initparams.virtual_channel, virtual_chan);
+	READ_OF_8_NODE(pResCfg->initparams.clk_lane_polarity, Clk_Lane_Polarity);
 
 	pResCfg->infoparams.resInfo.height = pResCfg->infoparams.resInfo.active_height +
 				pResCfg->infoparams.resInfo.vfrontporch +
 				pResCfg->infoparams.resInfo.vsyncwidth +
 				pResCfg->infoparams.resInfo.vbackporch;
 
+	/* Lets default the cmd bufsize to panelcfg.h array*/
 	pResCfg->vppMipiCmd.bufsize = sizeof(panel_commands);
+
+	/* Get the "command" buffer from the DTS */
+	if((prop = fdt_getprop(blob, offset, "command", &cmdsize))) {
+		/* Allocate the panel_commands array based on command array size*/
+		dts_panel_commands = malloc(cmdsize);
+		if(!dts_panel_commands) {
+			printf("dts_panel_commands malloc failure, using default panel!\n");
+		} else {
+			const uint8_t *bytes = (const uint8_t *)prop;
+
+			for (offset = 0; offset < cmdsize; offset++) {
+				dts_panel_commands[offset] = bytes[offset];
+			}
+			/* We have the command array from DTS, update cmd bufsize accordingly */
+			pResCfg->vppMipiCmd.bufsize = cmdsize;
+		}
+	}
 
 	if (!pResCfg->vppMipiCmd.bufsize) {
 		printf("Invalid MIPI commands\n");
@@ -231,8 +352,15 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 	memset(pResCfg->vppMipiCmd.pcmd, 0,
 		pResCfg->vppMipiCmd.bufsize + MIPI_CMD_HEADER_SIZE);
 
-	memcpy(pResCfg->vppMipiCmd.pcmd + MIPI_CMD_HEADER_SIZE, panel_commands,
-	       pResCfg->vppMipiCmd.bufsize);
+	if(dts_panel_commands) {
+		/* Use the panel commands available in the DTS */
+		memcpy(pResCfg->vppMipiCmd.pcmd + MIPI_CMD_HEADER_SIZE, dts_panel_commands,
+		       pResCfg->vppMipiCmd.bufsize);
+	} else {
+		/* Use default panel commands from panel_cfg.h*/
+		memcpy(pResCfg->vppMipiCmd.pcmd + MIPI_CMD_HEADER_SIZE, panel_commands,
+		       pResCfg->vppMipiCmd.bufsize);
+	}
 
 	pCmdHeader = (VPP_MIPI_CMD_HEADER*)pResCfg->vppMipiCmd.pcmd;
 	pCmdHeader->cmd_type = VPP_CMD_TYPE_INIT;
@@ -255,28 +383,30 @@ int syna_read_config(struct udevice *dev)
 {
 	struct berlin_fb_priv *priv = dev_get_priv(dev);
 	int ret;
+	const void *blob = gd->fdt_blob;
+	int offset, len;
+	const fdt32_t *prop;
 
-	priv->vpp_config_param.display_mode = dev_read_u32_default(dev,
-					       "disp-mode",
-					       VOUT_DISP_SINGLE_MODE_PRI);
+	if((offset = fdt_path_offset(blob, "/soc/drm")) < 0) {
+		printf("Parent node not found: %d\n", offset);
+		return 0;
+	}
 
-	priv->vpp_config_param.disp1_res_id = dev_read_u32_default(dev,
-					       "disp1-res-id", RES_720P60);
+	priv->vpp_config_param.display_mode = VOUT_DISP_SINGLE_MODE_PRI;
+	priv->vpp_config_param.disp1_res_id = RES_720P60;
+	priv->vpp_config_param.disp2_res_id = RES_DSI_CUSTOM;
+	priv->vpp_config_param.disp1_bpp = 24;
+	priv->vpp_config_param.disp1_outformat = 0;
+	priv->vpp_config_param.disp2_bpp = 24;
+	priv->vpp_config_param.disp2_outformat = 0;
 
-	priv->vpp_config_param.disp2_res_id = dev_read_u32_default(dev,
-					       "disp2-res-id", RES_DSI_CUSTOM);
-
-	priv->vpp_config_param.disp1_bpp = dev_read_u32_default(dev,
-					       "disp1-bits_per_pixel", 24);
-
-	priv->vpp_config_param.disp1_outformat = dev_read_u32_default(dev,
-						"disp2-busformat", 0);
-
-	priv->vpp_config_param.disp2_bpp = dev_read_u32_default(dev,
-					       "disp2-bits_per_pixel", 24);
-
-	priv->vpp_config_param.disp2_outformat = dev_read_u32_default(dev,
-						"disp2-busformat", 0);
+	READ_OF_NODE(priv->vpp_config_param.display_mode, disp-mode);
+	READ_OF_NODE(priv->vpp_config_param.disp1_res_id, disp1-res-id);
+	READ_OF_NODE(priv->vpp_config_param.disp2_res_id, disp2-res-id);
+	READ_OF_NODE(priv->vpp_config_param.disp1_bpp, disp1-bits_per_pixel);
+	READ_OF_NODE(priv->vpp_config_param.disp1_outformat, disp2-busformat);
+	READ_OF_NODE(priv->vpp_config_param.disp2_bpp, disp2-bits_per_pixel);
+	READ_OF_NODE(priv->vpp_config_param.disp2_outformat, disp2-busformat);
 
 	ret = syna_parse_vpp_dsi_dt(dev);
 	if (ret) {
@@ -314,7 +444,139 @@ static int berlin_fb_ofdata_to_platdata(struct udevice *dev)
 
 	return 0;
 }
+struct driver *find_compat_driver(const char *target_compat)
+{
+	struct driver *drv;
+	struct driver *start;
+	int count, i;
+	const struct udevice_id *match;
 
+	debug("find_compat_driver, target_compat: %s\n", target_compat);
+	start = ll_entry_start(struct driver, driver);
+	count = ll_entry_count(struct driver, driver);
+
+	for (i = 0; i < count; i++) {
+		drv = &start[i];
+		match = drv->of_match;
+		if (match) {
+			while (match->compatible) {
+				debug("Driver '%s' supports compatible: %s\n", drv->name, match->compatible);
+				if (!strcmp(match->compatible, target_compat)) {
+					debug("Found matching driver [%s] for compatible [%s]\n", drv->name, match->compatible);
+					return drv;
+				}
+				match++;
+			}
+		} else {
+			debug("Driver '%s' has no of_match table.\n", drv->name);
+		}
+	}
+	return NULL;
+}
+int probe_new_regulators(void)
+{
+	ofnode i2c_node, regulator_node, parent_node;
+	int index = 0, ret;
+	struct driver *drv;
+
+	parent_node = ofnode_path("/soc/apb@f7e80000");
+
+	if (!ofnode_valid(parent_node)) {
+		printf("soc apb node not found\n");
+		return -EINVAL;
+	}
+
+	ofnode_for_each_subnode(i2c_node, parent_node) {
+		struct udevice *i2c_dev, *dev;
+
+		/* Look for only i2c node from this parent node */
+		if (!ofnode_device_is_compatible(i2c_node, "snps,designware-i2c"))
+			continue;
+
+		/* Find corresponding device for this i2c_node if available */
+		if((ret = uclass_get_device_by_ofnode(UCLASS_I2C, i2c_node, &i2c_dev)))
+			continue;
+
+		/* Walk through i2c child nodes and attempt to bind any regulator node */
+		ofnode_for_each_subnode(regulator_node, i2c_node) {
+			if (!ofnode_valid(regulator_node))
+				continue;
+
+			const char *compat = ofnode_read_string(regulator_node, "compatible");
+
+			/* Found valid node, look for compatible driver to probe */
+			if(compat) {
+				char regulator_dev_name[100];
+
+				sprintf(regulator_dev_name, "regulator-dev%d", index);
+				if((drv = find_compat_driver(compat)) != NULL) {
+					/* Check if the device already bound*/
+					ret = device_get_global_by_ofnode(regulator_node, &dev);
+					if (!ret && !strcmp(dev->name, ofnode_get_name(regulator_node))) {
+						debug("Device already bound: %s\n", dev->name);
+						continue;
+					}
+
+					ret = device_bind_driver_to_node(i2c_dev, drv->name, regulator_dev_name, regulator_node, &dev);
+					if(ret) {
+						printf("driver %s bind to [%s/%s] failed [%d]\n", drv->name, ofnode_get_name(i2c_node),
+								ofnode_get_name(regulator_node), ret);
+						continue;
+					} else {
+						debug("driver %s bound to [%s/%s] @[%s]\n", drv->name, ofnode_get_name(i2c_node),
+								ofnode_get_name(regulator_node), regulator_dev_name);
+						/*Move index for next regulator binding*/
+						index++;
+					}
+
+					if(dev) {
+						ret = device_probe(dev);
+						if(ret) {
+							printf("device driver %s probe failed (%d)\n", drv->name, ret);
+						} else {
+							debug("device driver %s probe success!\n", drv->name);
+						}
+					}
+				}
+			} /* if(compat) */
+		} /* i2c child nodes loop */
+	} /* i2c parent loop */
+	return 0;
+}
+
+#define MATCH_SUBSTR "panel"
+int enable_all_panel_compatible_regulators(void)
+{
+	struct uclass *uc;
+	struct udevice *dev;
+	ofnode node;
+	const char *compat;
+	int ret;
+
+	ret = uclass_get(UCLASS_REGULATOR, &uc);
+	if (ret) {
+		printf("enable_all_panel_compatible_regulators, no regulator class (%d)\n", ret);
+		return ret;
+	}
+
+	uclass_foreach_dev(dev, uc) {
+		node = dev_ofnode(dev);
+		if (!ofnode_valid(node))
+			continue;
+
+		/* Get the compatible string */
+		compat = ofnode_get_property(node, "compatible", NULL);
+		if (!compat)
+			continue;
+
+		/* Match substring in compatible string */
+		if (strstr(compat, MATCH_SUBSTR)) {
+			/* enable the regulator */
+			regulator_set_enable(dev, 1);
+		}
+	}
+	return 0;
+}
 static int berlin_fb_probe(struct udevice *dev)
 {
 	struct berlin_fb_priv *priv = dev_get_priv(dev);
@@ -322,11 +584,12 @@ static int berlin_fb_probe(struct udevice *dev)
 
 	gd->flags &= ~GD_FLG_DEVINIT;
 
-	ret = uclass_get_device(UCLASS_REGULATOR, 0,
-					   &regulator);
-	if (!ret) {
-		regulator_set_enable(regulator, 1);
-	}
+	/* After dtbo overlay, we need to reprobe and bind regulator
+	 * before checking the available regulators for the display */
+	probe_new_regulators();
+
+	/* Search for all panel regulators and enable */
+	enable_all_panel_compatible_regulators();
 
 	ret = MV_VPP_Init(priv);
 	if (ret) {
@@ -442,6 +705,9 @@ static int do_show_logo(cmd_tbl_t *cmdtp, int flag, int argc,
 	int width, height, display;
 	struct udevice *dev;
 	int ret;
+
+	/* Invoke the DTB overlay before video device probed */
+	setup_uboot_fdt_overlay();
 
 	if (uclass_first_device_err(UCLASS_VIDEO, &dev)) {
 		printf("Video device not found\n");

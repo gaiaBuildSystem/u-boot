@@ -778,11 +778,19 @@ static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
 static optee_invoke_fn *get_invoke_func(struct udevice *dev)
 {
 	const char *method;
+	ofnode node;
 
 	debug("optee: looking for conduit method in DT.\n");
-	method = ofnode_get_property(dev_ofnode(dev), "method", NULL);
+	/* After overlay, use fdt_ API's to work on the "live" FDT in memory*/
+	node = ofnode_path("/firmware/optee");
+	if (!ofnode_valid(node)) {
+		printf("Node '/firmware/optee' not found\n");
+		return ERR_PTR(-ENXIO);
+	}
+
+	method = ofnode_read_string(node, "method");
 	if (!method) {
-		debug("optee: missing \"method\" property\n");
+		printf("'method' property not found in /firmware/optee\n");
 		return ERR_PTR(-ENXIO);
 	}
 
