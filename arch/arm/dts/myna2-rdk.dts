@@ -99,6 +99,12 @@
 		function = "rgmii";
 	};
 
+	i2c0_pmux: i2c0-pmux {
+		groups = "TW0_SCL", "TW0_SDA";
+		function = "tw0";
+		drive-strength = <7>;
+	};
+
 	i2c1_pmux: i2c1-pmux {
 		groups = "TW1_SCL", "TW1_SDA";
 		function = "tw1";
@@ -128,6 +134,20 @@
 	};
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-0 = <&i2c0_pmux>;
+	pinctrl-names = "default";
+	clock-frequency = <100000>;
+
+	expander2: gpio@44 {
+		compatible = "fcs,fxl6408";
+		reg = <0x44>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
 &i2c1 {
 	status = "okay";
 	pinctrl-0 = <&i2c1_pmux>;
@@ -149,6 +169,13 @@
 		reg = <0x44>;
 		gpio-controller;
 		#gpio-cells = <2>;
+	};
+
+	dsi_bridge: lt9611 {
+		compatible = "syna-bridge,lt9611";
+		status = "okay";
+		reg = <0x3B>;
+		enable-gpio = <&expander2 6 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -236,7 +263,7 @@
 	pinctrl-names = "default";
 };
 
-&lcdc_fb {
+&drm {
 	status = "okay";
 	irqno = <62>;
 	pinctrl-0 = <&lcdc_pmux>, <&lcdc_pmux1>, <&lcdc_gpio_pmux>;
@@ -265,34 +292,35 @@
 	dsi_panel {
 		status= "okay";
 
-		ACTIVE_WIDTH = <800>;
-		HFP = <60>;
-		HSYNCWIDTH = <32>;
-		HBP = <60>;
-		ACTIVE_HEIGHT = <1280>;
-		VFP = <16>;
-		VSYNCWIDTH = <2>;
-		VBP = <14>;
-		FREQ = <75000>;
+		ACTIVE_WIDTH = <1920>;
+		HFP = <88>;
+		HSYNCWIDTH = <44>;
+		HBP = <148>;
+		ACTIVE_HEIGHT = <1080>;
+		VFP = <4>;
+		VSYNCWIDTH = <5>;
+		VBP = <36>;
+		FREQ = <148500>;
+		PIXEL_CLOCK = <148500>;
 
-		HTOTAL = <952>;
-		Lanes = <4>;
-		Vid_mode = <2>;
-		virtual_chan = <0>;
-		Clk_Lane_Polarity = <0>;
-		Data_Lane_Polarity = <0>;
-		Recv_ack = <0>;
-		Loosely_18 = <0>;
-		H_polarity = <1>;
-		V_Polarity = <1>;
-		Data_Polarity = <1>;
-		Eotp_tx = <1>;
-		Eotp_rx = <0>;
-		non-Continuous_clk = <1>;
-		dpi_lp_cmd = <1>;
-		Color_coding = <5>;
+		HTOTAL = <2200>;
+		Lanes = /bits/ 8 <4>;
+		Vid_mode = /bits/ 8 <2>;
+		virtual_chan = /bits/ 8 <0>;
+		Clk_Lane_Polarity = /bits/ 8 <0>;
+		Data_Lane_Polarity = /bits/ 8 <0>;
+		Recv_ack = /bits/ 8 <0>;
+		Loosely_18 = /bits/ 8 <0>;
+		H_polarity = /bits/ 8 <1>;
+		V_Polarity = /bits/ 8 <1>;
+		Data_Polarity = /bits/ 8 <1>;
+		Eotp_tx = /bits/ 8 <1>;
+		Eotp_rx = /bits/ 8 <0>;
+		non-Continuous_clk = /bits/ 8 <0>;
+		dpi_lp_cmd = /bits/ 8 <1>;
+		Color_coding = /bits/ 8 <5>;
 		Chunks = <0>;
 		Null_Pkt = <0>;
-		Byte_clk = <56250>;
+		Byte_clk = <148500>;
 	};
 };

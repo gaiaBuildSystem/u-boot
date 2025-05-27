@@ -139,6 +139,14 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	panel0-backlight {
+		status = "disabled";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -203,109 +211,6 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <400000000>;
-		};
-
-		socapb@e80000 {
-			compatible = "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0xe80000 0x10000>;
-
-			uart0: uart@1400 {
-				compatible = "snps,dw-apb-uart";
-				reg = <0x1400 0x100>;
-				clock-frequency = <25000000>;
-				clocks = <&osc>;
-				reg-shift = <2>;
-				status = "disabled";
-			};
-
-			gpio0: gpio@0800 {
-				compatible = "snps,dw-apb-gpio";
-				dev_name = "gpio_soc_0";
-				reg = <0x0800 0x400>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				porta: gpio-port@0 {
-					compatible = "snps,dw-apb-gpio-port";
-					bank-name = "porta";
-					gpio-controller;
-					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
-					reg = <0>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-				};
-			};
-
-			gpio1: gpio@0c00 {
-				compatible = "snps,dw-apb-gpio";
-				dev_name = "gpio_soc_1";
-				reg = <0x0c00 0x400>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				portb: gpio-port@1 {
-					compatible = "snps,dw-apb-gpio-port";
-					bank-name = "portb";
-					gpio-controller;
-					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
-					reg = <0>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-				};
-			};
-
-			gpio2: gpio@1000 {
-				compatible = "snps,dw-apb-gpio";
-				dev_name = "gpio_soc_2";
-				reg = <0x1000 0x400>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				portc: gpio-port@2 {
-					compatible = "snps,dw-apb-gpio-port";
-					bank-name = "portc";
-					gpio-controller;
-					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
-					reg = <0>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
-				};
-			};
-
-			i2c0: i2c@1c00 {
-				compatible = "snps,designware-i2c";
-				reg = <0x1c00 0x100>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				clocks = <&apbcoreclk>;
-				status = "disabled";
-			};
-
-			i2c1: i2c@2000 {
-				compatible = "snps,designware-i2c";
-				reg = <0x2000 0x100>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				clocks = <&apbcoreclk>;
-				status = "disabled";
-			};
-
-			i2c2: i2c@2400 {
-				compatible = "snps,designware-i2c";
-				reg = <0x2400 0x100>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				clocks = <&apbcoreclk>;
-				status = "disabled";
-			};
 		};
 
 		usbc0: usbconsole {
@@ -442,7 +347,113 @@
 			status = "disabled";
 		};
 
-		lcdc_fb: lcdc_fb {
+		socapb: apb@f7e80000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xe80000 0x10000>;
+
+			uart0: uart@1400 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0x1400 0x100>;
+				clock-frequency = <25000000>;
+				clocks = <&osc>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
+
+			gpio0: gpio@0800 {
+				compatible = "snps,dw-apb-gpio";
+				dev_name = "gpio_soc_0";
+				reg = <0x0800 0x400>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				porta: gpio-port@0 {
+					compatible = "snps,dw-apb-gpio-port";
+					bank-name = "porta";
+					gpio-controller;
+					#gpio-cells = <2>;
+					snps,nr-gpios = <32>;
+					reg = <0>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+			gpio1: gpio@0c00 {
+				compatible = "snps,dw-apb-gpio";
+				dev_name = "gpio_soc_1";
+				reg = <0x0c00 0x400>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				portb: gpio-port@1 {
+					compatible = "snps,dw-apb-gpio-port";
+					bank-name = "portb";
+					gpio-controller;
+					#gpio-cells = <2>;
+					snps,nr-gpios = <32>;
+					reg = <0>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+			gpio2: gpio@1000 {
+				compatible = "snps,dw-apb-gpio";
+				dev_name = "gpio_soc_2";
+				reg = <0x1000 0x400>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				portc: gpio-port@2 {
+					compatible = "snps,dw-apb-gpio-port";
+					bank-name = "portc";
+					gpio-controller;
+					#gpio-cells = <2>;
+					snps,nr-gpios = <32>;
+					reg = <0>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+			i2c1: i2c@2000 {
+				compatible = "snps,designware-i2c";
+				reg = <0x2000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&apbcoreclk>;
+				status = "disabled";
+			};
+
+			i2c2: i2c@2400 {
+				compatible = "snps,designware-i2c";
+				reg = <0x2400 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&apbcoreclk>;
+				status = "disabled";
+			};
+/**************************************************************************************
+    Put all new nodes before this line - DTBO overlay feature updates below entries
+***************************************************************************************/
+			i2c0: i2c@1c00 {
+				compatible = "snps,designware-i2c";
+				reg = <0x1c00 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&apbcoreclk>;
+				status = "disabled";
+			};
+
+		};
+
+		drm: drm {
 			compatible = "syna,lcdc-fb";
 			status = "disabled";
 			u-boot,dm-pre-reloc;

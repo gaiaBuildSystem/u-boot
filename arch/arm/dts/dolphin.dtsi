@@ -125,6 +125,14 @@
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
+	panel0-backlight {
+		status = "disabled";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
@@ -234,60 +242,9 @@
 			};
 		};
 
-		socapb@e80000 {
-			compatible = "simple-bus";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0xe80000 0x10000>;
-
-			gpio0: gpio@2400 {
-				compatible = "snps,dw-apb-gpio";
-				dev_name = "gpio_soc_0";
-				reg = <0x2400 0x400>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				porta: gpio-port@0 {
-					compatible = "snps,dw-apb-gpio-port";
-					bank-name = "porta";
-					gpio-controller;
-					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
-					reg = <0>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-				};
-			};
-
-			gpio1: gpio@0800 {
-				compatible = "snps,dw-apb-gpio";
-				dev_name = "gpio_soc_1";
-				reg = <0x0800 0x400>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				portb: gpio-port@1 {
-					compatible = "snps,dw-apb-gpio-port";
-					bank-name = "portb";
-					gpio-controller;
-					#gpio-cells = <2>;
-					snps,nr-gpios = <32>;
-					reg = <0>;
-					interrupt-controller;
-					#interrupt-cells = <2>;
-					interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
-				};
-			};
-
-			i2c0: i2c@1800 {
-				compatible = "snps,designware-i2c";
-				reg = <0x1800 0x100>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-				clocks = <&apbcoreclk>;
-				status = "disabled";
-			};
+		sysmgr_pinctrl: sysmgr_pinctrl@fe2c10 {
+			compatible = "syna,dolphin-sysmgr-pinctrl";
+			reg = <0xfe2c10 0xc>;
 		};
 
 		usbc0: usbconsole {
@@ -415,11 +372,6 @@
 			reg = <0xea8400 0xc>;
 		};
 
-		sysmgr_pinctrl: sysmgr_pinctrl@fe2c10 {
-			compatible = "syna,dolphin-sysmgr-pinctrl";
-			reg = <0xfe2c10 0xc>;
-		};
-
 		pwm0: pwm@f20000 {
 			compatible = "syna,berlin-pwm";
 			reg = <0xf20000 0x40>;
@@ -427,16 +379,76 @@
 			#pwm-cells = <3>;
 			status = "disabled";
 		};
+
+		socapb: apb@f7e80000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xe80000 0x10000>;
+
+			gpio0: gpio@2400 {
+				compatible = "snps,dw-apb-gpio";
+				dev_name = "gpio_soc_0";
+				reg = <0x2400 0x400>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				porta: gpio-port@0 {
+					compatible = "snps,dw-apb-gpio-port";
+					bank-name = "porta";
+					gpio-controller;
+					#gpio-cells = <2>;
+					snps,nr-gpios = <32>;
+					reg = <0>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+			gpio1: gpio@0800 {
+				compatible = "snps,dw-apb-gpio";
+				dev_name = "gpio_soc_1";
+				reg = <0x0800 0x400>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				portb: gpio-port@1 {
+					compatible = "snps,dw-apb-gpio-port";
+					bank-name = "portb";
+					gpio-controller;
+					#gpio-cells = <2>;
+					snps,nr-gpios = <32>;
+					reg = <0>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+					interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+				};
+			};
+
+/**************************************************************************************
+    Put all new nodes before this line - DTBO overlay feature updates below entries
+***************************************************************************************/
+			i2c0: i2c@1800 {
+				compatible = "snps,designware-i2c";
+				reg = <0x1800 0x100>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				clocks = <&apbcoreclk>;
+				status = "disabled";
+			};
+		};
+
+		drm:drm {
+			compatible = "syna,vpp-fb";
+			status = "disabled";
+			u-boot,dm-pre-reloc;
+
+			dsi_panel {
+				compatible = "syna,mipi-dsi";
+				status = "disabled";
+			};
+		};
 	};
 
-	vpp_fb:vpp_fb {
-		compatible = "syna,vpp-fb";
-		status = "disabled";
-		u-boot,dm-pre-reloc;
-
-		dsi_panel {
-			compatible = "syna,mipi-dsi";
-			status = "disabled";
-		};
-       };
 };

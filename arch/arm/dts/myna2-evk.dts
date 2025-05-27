@@ -271,7 +271,7 @@
         pinctrl-names = "default";
 };
 
-&lcdc_fb {
+&drm {
 	status = "okay";
 	irqno = <62>;
 	pinctrl-0 = <&lcdc_pmux>, <&lcdc_pmux1>, <&lcdc_gpio_pmux>, <&lcdc_bl_gpio_pmux>;
