@@ -22,7 +22,7 @@
 # TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
 #
 
-obj-$(CONFIG_SYNA_DWSPI) += syna_flash.o
+obj-$(CONFIG_CMD_SYNA_FLASH) += syna_flash.o
 obj-$(CONFIG_ARCH_SYNAPTICS) += imageload.o
 obj-$(CONFIG_MMC_WRITE) += emmcburn.o
 obj-$(CONFIG_SYNA_SUBOOT) += syna_boot.o

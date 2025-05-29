@@ -23,4 +23,9 @@ config CMD_SYNA_OTP
 config CMD_SYNA_MTDPARTS
 	bool "Enable MTD parts in version table format"
 	depends on SYNA_SPI_SUBOOT
+
+config CMD_SYNA_FLASH
+	default y
+	bool "Enable Flash command for Synaptics plats"
+	depends on (SYNA_DWSPI || CADENCE_XSPI)
 endmenu
