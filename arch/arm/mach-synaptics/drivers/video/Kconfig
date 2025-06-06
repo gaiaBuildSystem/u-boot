@@ -17,3 +17,9 @@ config SYNA_DRM_BRIDGE_LT9611
 	depends on VIDEO_SYNA
 	help
 		Configures Syna driver based LT9611 bridge support
+
+config SYNA_WSPANEL_1080P
+	bool "syna compatible wspanel 1080p resolution"
+	depends on VIDEO_SYNA
+	help
+	  syna compatible waveshare 13.3 inch 1080P panel

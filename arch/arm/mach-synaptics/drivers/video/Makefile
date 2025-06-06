@@ -94,5 +94,6 @@ obj-y += hal_vpp_wrap.o
 obj-y += load_logo.o
 obj-y += vpp_api.o
 obj-y += fb.o
+obj-$(CONFIG_SYNA_WSPANEL_1080P) += panel/waveshare/panel-waveshare-dsi.o
 
 endif
