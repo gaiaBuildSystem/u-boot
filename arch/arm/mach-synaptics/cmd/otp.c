@@ -49,6 +49,9 @@ static int do_otp(struct cmd_tbl *cmdtp, int flag, int argc, char * const argv[]
 
 	printf("otp operation %s\n", res.a0 == 0 ? "succeed" : "failed");
 
+	if (res.a0 != 0)
+		printf("ret = 0x%x\n", res.a0);
+
 	return res.a0 == 0 ? CMD_RET_SUCCESS : CMD_RET_FAILURE;
 }
 
