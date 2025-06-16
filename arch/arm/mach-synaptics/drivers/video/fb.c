@@ -50,6 +50,7 @@ static struct udevice *backlight;
 static struct udevice *regulator;
 
 typedef struct cmd_tbl_s	cmd_tbl_t;
+struct gpio_desc enable_gpio;
 
 static int berlin_fb_sync(struct udevice *dev)
 {
@@ -428,6 +429,18 @@ static int do_show_logo(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (uclass_first_device_err(UCLASS_VIDEO, &dev)) {
 		printf("Video device not found\n");
 		return -ENODEV;
+	}
+
+	ret = gpio_request_by_name(dev, "hdtx5v-gpio", 0, &enable_gpio,
+					GPIOD_IS_OUT);
+	if (ret)
+		debug("%s: Could not get reset-GPIO (err = %d)\n",
+		      dev->name, ret);
+	else {
+		ret = dm_gpio_set_value(&enable_gpio, 1);
+		if (ret)
+			debug("%s: Error while setting reset-GPIO (err = %d)\n",
+				dev->name, ret);
 	}
 
 	priv = dev_get_priv(dev);
