@@ -103,6 +103,11 @@
 		groups = "TW0_SCL", "TW0_SDA";
 		function = "tw0";
 	};
+
+	hdmitx5v_pmux: hdmitx5v-pmux {
+		groups = "USB2_DRV_VBUS";
+		function = "gpio";
+	};
 };
 
 &CPU_SLEEP_0 {
@@ -215,6 +220,10 @@
 	disp-mode = <2>;
 	disp1-res-id = <13>;
 	disp2-res-id = <102>;
+
+	pinctrl-0 = <&hdmitx5v_pmux>;
+	pinctrl-names = "default";
+	hdtx5v-gpio = <&portb 23 GPIO_ACTIVE_HIGH>;
 
 	dsi_panel {
 		status= "okay";

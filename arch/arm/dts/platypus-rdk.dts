@@ -98,6 +98,11 @@
 		groups = "I2S1_DO1";
 		function = "gpio";
 	};
+
+	hdmi_pwr_pmux: hdmi_pwr-pmux {
+		groups = "GPIO_A0";
+		function = "gpio";
+	};
 };
 
 &sysmgr_pinctrl {
@@ -199,6 +204,10 @@
 
 	disp-mode = <0>;
 	disp1-res-id = <13>;
+
+	pinctrl-0 = <&hdmi_pwr_pmux>;
+	pinctrl-names = "default";
+	hdtx5v-gpio = <&portb 3 GPIO_ACTIVE_HIGH>; /* SOC GPIO 35 */
 
 	dsi_panel {
 		status= "okay";
