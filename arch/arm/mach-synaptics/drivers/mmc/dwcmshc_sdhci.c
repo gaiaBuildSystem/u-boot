@@ -238,9 +238,9 @@ static int dwcmshc_setup_hs400_phy_dll(struct sdhci_host *host)
 
 	/* calibrate DLL */
 	valb = sdhci_readb(host, PHY_DLLDBG_MLKDC_REG);
-	mstlkdc = valb & 0x3F;
+	mstlkdc = valb & 0x7F;
 	valb = sdhci_readb(host, PHY_DLLDBG_SLKDC_REG);
-	slvlkdc = valb & 0x3F;
+	slvlkdc = valb & 0x7F;
 
 	if (mstlkdc / slvlkdc == 4)
 		delay_step = 5000 / mstlkdc;
