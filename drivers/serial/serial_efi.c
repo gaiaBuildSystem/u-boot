@@ -84,9 +84,12 @@ static int serial_efi_putc(struct udevice *dev, const char ch)
 
 	ucode[0] = ch;
 	ucode[1] = '\0';
+
+#ifndef CONFIG_DISABLE_CONSOLE
 	ret = priv->con_out->output_string(priv->con_out, ucode);
 	if (ret)
 		return -EIO;
+#endif
 
 	return 0;
 }

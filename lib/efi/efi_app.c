@@ -26,6 +26,8 @@
 #include <dm/lists.h>
 #include <dm/root.h>
 #include <mapmem.h>
+#include <version.h>
+#include <version_string.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -98,14 +100,18 @@ static efi_status_t setup_memory(struct efi_priv *priv)
 	ret = boot->allocate_pages(EFI_ALLOCATE_MAX_ADDRESS,
 				   priv->image_data_type, pages, &addr);
 	if (ret) {
+#ifndef CONFIG_DISABLE_CONSOLE
 		log_info("(using pool %lx) ", ret);
+#endif
 		priv->ram_base = (ulong)efi_malloc(priv, CONFIG_EFI_RAM_SIZE,
 						   &ret);
 		if (!priv->ram_base)
 			return ret;
 		priv->use_pool_for_malloc = true;
 	} else {
+#ifndef CONFIG_DISABLE_CONSOLE
 		log_info("(using allocated RAM address %lx) ", (ulong)addr);
+#endif
 		priv->ram_base = addr;
 	}
 	gd->ram_size = pages << 12;
@@ -193,7 +199,7 @@ efi_status_t EFIAPI efi_main(efi_handle_t image,
 	 *	return ret;
 	 */
 
-	printf("starting\n");
+	printf("\nU-Boot %s starting\n", version_string);
 	printf("rsdp (%lx)\n", gd_acpi_start());
 
 	board_init_f(GD_FLG_SKIP_RELOC);
