@@ -102,9 +102,11 @@ int efi_init(struct efi_priv *priv, const char *banner, efi_handle_t image,
 	priv->parent_image = image;
 	priv->run = sys_table->runtime;
 
+#ifndef CONFIG_DISABLE_CONSOLE
 	efi_puts(priv, "U-Boot EFI ");
 	efi_puts(priv, banner);
 	efi_putc(priv, ' ');
+#endif
 
 	ret = boot->open_protocol(priv->parent_image, &loaded_image_guid,
 				  (void **)&loaded_image, priv->parent_image,
