@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/types.h>
 #include <asm/global_data.h>
+#include <asm/e820.h>
 #include <dm/device-internal.h>
 #include <dm/lists.h>
 #include <dm/root.h>
@@ -117,6 +118,100 @@ static efi_status_t setup_memory(struct efi_priv *priv)
 	gd->ram_size = pages << 12;
 
 	return 0;
+}
+
+unsigned int install_e820_map(unsigned int max_entries,
+                              struct e820_entry *entries)
+{
+    struct efi_mem_desc *desc;
+    int size, desc_size;
+    uint key, version;
+    int ret;
+    efi_physical_addr_t last_end_addr = 0;
+    struct e820_entry *last_entry = NULL;
+    __u32 e820_type;
+    unsigned int num_entries = 0;
+
+    /* Get the EFI memory map using EFI app method */
+    ret = efi_get_mmap(&desc, &size, &key, &desc_size, &version);
+    if (ret) {
+        printf("Cannot get EFI memory map, ret=%d\n", ret);
+        return 0;
+    }
+
+    /* Parse memory descriptors */
+    u8 *desc_ptr = (u8 *)desc;
+    int num_descriptors = size / desc_size;
+
+    for (int i = 0; i < num_descriptors; i++) {
+        struct efi_mem_desc *mem_desc = (struct efi_mem_desc *)desc_ptr;
+
+        if (mem_desc->num_pages == 0) {
+            desc_ptr += desc_size;
+            continue;
+        }
+
+        /* Convert EFI memory types to E820 types */
+        switch (mem_desc->type) {
+        case EFI_LOADER_CODE:
+        case EFI_LOADER_DATA:
+        case EFI_BOOT_SERVICES_CODE:
+        case EFI_BOOT_SERVICES_DATA:
+        case EFI_CONVENTIONAL_MEMORY:
+            e820_type = E820_RAM;
+            break;
+
+        case EFI_RESERVED_MEMORY_TYPE:
+        case EFI_RUNTIME_SERVICES_CODE:
+        case EFI_RUNTIME_SERVICES_DATA:
+        case EFI_MMAP_IO:
+        case EFI_MMAP_IO_PORT:
+        case EFI_PAL_CODE:
+            e820_type = E820_RESERVED;
+            break;
+
+        case EFI_ACPI_RECLAIM_MEMORY:
+            e820_type = E820_ACPI;
+            break;
+
+        case EFI_ACPI_MEMORY_NVS:
+            e820_type = E820_NVS;
+            break;
+
+        case EFI_UNUSABLE_MEMORY:
+            e820_type = E820_UNUSABLE;
+            break;
+
+        default:
+            printf("Invalid EFI memory descriptor type (0x%x)!\n",
+                   mem_desc->type);
+            desc_ptr += desc_size;
+            continue;
+        }
+
+        /* Merge contiguous regions of same type */
+        if (last_entry != NULL && last_entry->type == e820_type &&
+		    mem_desc->physical_start == last_end_addr) {
+			last_entry->size += (mem_desc->num_pages << EFI_PAGE_SHIFT);
+			last_end_addr += (mem_desc->num_pages << EFI_PAGE_SHIFT);
+		} else {
+			if (num_entries >= E820MAX)
+				break;
+
+			entries[num_entries].addr = mem_desc->physical_start;
+			entries[num_entries].size = mem_desc->num_pages;
+			entries[num_entries].size <<= EFI_PAGE_SHIFT;
+			entries[num_entries].type = e820_type;
+			last_entry = &entries[num_entries];
+			last_end_addr = last_entry->addr + last_entry->size;
+			num_entries++;
+		}
+
+        desc_ptr += desc_size;
+    }
+
+    free(desc);
+    return num_entries;
 }
 
 /**
