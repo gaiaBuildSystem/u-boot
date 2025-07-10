@@ -74,7 +74,8 @@ config ENV_IS_DEFAULT
 		     !ENV_IS_IN_MMC && !ENV_IS_IN_NAND && \
 		     !ENV_IS_IN_NVRAM && !ENV_IS_IN_ONENAND && \
 		     !ENV_IS_IN_REMOTE && !ENV_IS_IN_SPI_FLASH && \
-		     !ENV_IS_IN_UBI && !ENV_IS_IN_MTD
+		     !ENV_IS_IN_UBI && !ENV_IS_IN_MTD && \
+		     !ENV_IS_IN_EFI_MEDIA
 	select ENV_IS_NOWHERE
 
 config ENV_IS_NOWHERE
@@ -124,6 +125,16 @@ config ENV_IS_IN_EXT4
 	select EXT4_WRITE
 	help
 	  Define this if you want to use the EXT4 file system for the environment.
+
+config ENV_IS_IN_EFI_MEDIA
+	bool "Environment is on an EFI media device"
+	depends on !CHAIN_OF_TRUST
+	depends on EFI_APP
+	help
+	  Define this if you want to use an EFI media device for the environment.
+	  This allows saving the U-Boot environment to EFI media devices that
+	  support the EFI Simple File System Protocol, such as EFI block devices.
+	  This option is only available when U-Boot is running as an EFI application.
 
 config ENV_IS_IN_FLASH
 	bool "Environment in flash memory"
@@ -577,6 +588,22 @@ config ENV_EXT4_FILE
 	help
 	  It's a string of the EXT4 file name. This file use to store the
 	  environment (explicit path to the file)
+
+config ENV_EFI_MEDIA_DEVICE
+	int "EFI media device index for the environment"
+	depends on ENV_IS_IN_EFI_MEDIA
+	default 0
+	help
+	  Define this to specify which EFI media device to use for the environment.
+	  Device 0 is the first EFI media device, device 1 is the second, etc.
+
+config ENV_EFI_MEDIA_FILE
+	string "Name of the file to use for the environment on EFI media"
+	depends on ENV_IS_IN_EFI_MEDIA
+	default "uboot.env"
+	help
+	  It's a string of the file name to store the environment on the EFI media device.
+	  This file will be created in the root directory of the EFI file system.
 
 config ENV_ADDR
 	hex "Environment address"
