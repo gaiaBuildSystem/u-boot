@@ -151,7 +151,7 @@ struct global_data {
 	 *
 	 * &enum env_location defines which bit relates to which location
 	 */
-	unsigned short env_has_init;
+	unsigned int env_has_init;
 	/**
 	 * @env_valid: environment is valid
 	 *
