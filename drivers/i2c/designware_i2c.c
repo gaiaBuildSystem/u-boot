@@ -592,8 +592,13 @@ static int __dw_i2c_init(struct i2c_regs *i2c_base, int speed, int slaveaddr)
 	if (ret)
 		return ret;
 
+#ifdef CONFIG_ARCH_SYNAPTICS
+	writel(IC_CON_SD | IC_CON_RE | IC_CON_SPD_SS | IC_CON_MM,
+	       &i2c_base->ic_con);
+#else
 	writel(IC_CON_SD | IC_CON_RE | IC_CON_SPD_FS | IC_CON_MM,
 	       &i2c_base->ic_con);
+#endif
 	writel(IC_RX_TL, &i2c_base->ic_rx_tl);
 	writel(IC_TX_TL, &i2c_base->ic_tx_tl);
 	writel(IC_STOP_DET, &i2c_base->ic_intr_mask);
