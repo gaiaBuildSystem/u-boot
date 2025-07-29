@@ -95,6 +95,9 @@
 	pinctrl-0 = <&i2c1_pmux>;
 	pinctrl-names = "default";
 	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <449>;
+	i2c-scl-rising-time-ns = <120>;
+	i2c-scl-falling-time-ns = <20>;
 
 	expander0: gpio@43 {
 		compatible = "fcs,fxl6408";

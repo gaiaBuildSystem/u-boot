@@ -141,6 +141,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pmux>;
 	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <449>;
+	i2c-scl-rising-time-ns = <120>;
+	i2c-scl-falling-time-ns = <20>;
 
 	rpi_panel_regulator: rpi_panel_regulator@44 {
 		compatible = "raspberrypi,7inch-touchscreen-panel-regulator";
@@ -154,6 +157,11 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&sm_i2c_tw3_pmux>;
+	clock-frequency = <100000>;
+	i2c-sda-hold-time-ns = <449>;
+	i2c-scl-rising-time-ns = <120>;
+	i2c-scl-falling-time-ns = <20>;
+
 	expander0: gpio@43 {
 		compatible = "fcs,fxl6408";
 		reg = <0x43>;

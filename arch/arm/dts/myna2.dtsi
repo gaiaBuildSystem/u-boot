@@ -178,7 +178,7 @@
 		apbcoreclk: apbcoreclk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <2500000>;
+			clock-frequency = <100000000>;
 		};
 
 		gmac0clk: gmac0clk {
@@ -285,7 +285,7 @@
 				reg = <0x1c00 0x100>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&osc>;
+				clocks = <&apbcoreclk>;
 				status = "disabled";
 			};
 
@@ -294,7 +294,7 @@
 				reg = <0x2000 0x100>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&osc>;
+				clocks = <&apbcoreclk>;
 				status = "disabled";
 			};
 
@@ -303,7 +303,7 @@
 				reg = <0x2400 0x100>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&osc>;
+				clocks = <&apbcoreclk>;
 				status = "disabled";
 			};
 		};
