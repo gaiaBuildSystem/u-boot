@@ -169,10 +169,10 @@
 			#clock-cells = <1>;
 		};
 
-		pwmclk: pwmclk {
+		cfgclk: cfgclk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <1000000>;
+			clock-frequency = <100000000>;
 		};
 
 		apbcoreclk: apbcoreclk {
@@ -436,8 +436,8 @@
 		pwm0: pwm {
 			compatible = "syna,berlin-pwm";
 			reg = <0xf20000 0x40>;
-			clocks = <&pwmclk>;
-			clock-names = "pwmclk";
+			clocks = <&cfgclk>;
+			clock-names = "cfgclk";
 			#pwm-cells = <3>;
 			status = "disabled";
 		};
