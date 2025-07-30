@@ -32,6 +32,7 @@
 #include <dm.h>
 #include <i2c.h>
 #include <power/regulator.h>
+#include <linux/delay.h>
 
 /* I2C registers of the Atmel microcontroller. */
 #define REG_ID		0x80
@@ -73,7 +74,7 @@ static int attiny_regulator_of_to_plat(struct udevice *dev)
 
 static int attiny_i2c_write(struct udevice *dev, uint8_t buf, uint8_t reg)
 {
-	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
+	struct dm_i2c_chip *chip = dev_get_parent_plat(dev);
 	int ret;
 
 	ret = dm_i2c_write(dev, reg, &buf, 1);
@@ -87,7 +88,7 @@ static int attiny_i2c_write(struct udevice *dev, uint8_t buf, uint8_t reg)
 
 static int attiny_i2c_read(struct udevice *dev, uint8_t *buf, uint8_t reg)
 {
-	struct dm_i2c_chip *chip = dev_get_parent_platdata(dev);
+	struct dm_i2c_chip *chip = dev_get_parent_plat(dev);
 	uint8_t addr_buf[1] = { reg };
 	uint8_t data_buf[1] = { 0, };
 	struct i2c_msg msgs[1];
