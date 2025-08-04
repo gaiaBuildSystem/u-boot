@@ -36,7 +36,7 @@
 #include "vbuf.h"
 #include "vpp.h"
 
-#define WAIT_LOOP_COUNT 10
+#define WAIT_LOOP_COUNT 50
 
 #define MP_BERLIN_INTR_ID(id)   (id + 32)
 
