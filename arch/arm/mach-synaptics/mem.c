@@ -45,6 +45,14 @@ struct dram_bank {
 
 __section(".data") static int bank_nr;
 
+#ifdef CONFIG_TARGET_KLAMATH
+#define REG_MEM_MAP_BASE 0xE0000000UL
+#define REG_MEM_MAP_SIZE 0x20000000UL
+#else
+#define REG_MEM_MAP_BASE 0xF0000000UL
+#define REG_MEM_MAP_SIZE 0x10000000UL
+#endif
+
 #define MAX_MM_REGION	4
 __section(".data") static struct mm_region berlin_mem_map[MAX_MM_REGION];
 struct mm_region *mem_map = berlin_mem_map;
@@ -101,9 +109,9 @@ void get_mem_from_tzk(void)
 		mem_map[1].attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
 				   PTE_BLOCK_INNER_SHARE;
 
-		mem_map[bank_nr].virt = 0xF0000000UL;
-		mem_map[bank_nr].phys = 0xF0000000UL;
-		mem_map[bank_nr].size = 0x10000000UL;
+		mem_map[bank_nr].virt = REG_MEM_MAP_BASE;
+		mem_map[bank_nr].phys = REG_MEM_MAP_BASE;
+		mem_map[bank_nr].size = REG_MEM_MAP_SIZE;
 		mem_map[bank_nr].attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 					 PTE_BLOCK_NON_SHARE |
 					 PTE_BLOCK_PXN | PTE_BLOCK_UXN;
@@ -190,9 +198,9 @@ int get_mem_from_fdt(void)
 		      __func__, i, sizeof(phys_size_t));
 	}
 
-	mem_map[bank_nr].virt = 0xF0000000UL;
-	mem_map[bank_nr].phys = 0xF0000000UL;
-	mem_map[bank_nr].size = 0x10000000UL;
+	mem_map[bank_nr].virt = REG_MEM_MAP_BASE;
+	mem_map[bank_nr].phys = REG_MEM_MAP_BASE;
+	mem_map[bank_nr].size = REG_MEM_MAP_SIZE;
 	mem_map[bank_nr].attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
 				 PTE_BLOCK_NON_SHARE |
 				 PTE_BLOCK_PXN | PTE_BLOCK_UXN;
