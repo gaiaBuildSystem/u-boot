@@ -1,0 +1,22 @@
+if TARGET_KLAMATH
+
+config SYS_BOARD
+	default "klamath"
+
+config SYS_CONFIG_NAME
+	default "klamath"
+
+config SYS_BOARD_FPGA
+	bool "Run on FPGA board"
+	default n
+	help
+	  Say Y here to support FPGA.
+
+config SYS_BOARD_VELOCE
+	bool "Run on VELOCE board"
+	default n
+	select SYS_BOARD_FPGA
+	help
+	  Say Y here to support VELOCE.
+
+endif

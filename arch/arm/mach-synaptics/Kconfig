@@ -29,6 +29,13 @@ config TARGET_MYNA2
 	help
 	  The Synaptics Myna2 is a ARM64-based SoC with a quad-core Cortex-A55.
 	  including UART, SPI, USB2.0 and OTG, EMMC, etc.
+
+config TARGET_KLAMATH
+	bool "Synaptics KLAMATH SoC"
+	select ARM64
+	help
+	  The Synaptics KLAMATH is a ARM64-based SoC with a quad-core Cortex-A55.
+	  including UART, SPI, USB2.0 and OTG, EMMC, etc.
 endchoice
 
 source "arch/arm/mach-synaptics/drivers/Kconfig"
@@ -37,6 +44,7 @@ source "arch/arm/mach-synaptics/cmd/Kconfig"
 source "board/synaptics/myna2/Kconfig"
 source "board/synaptics/platypus/Kconfig"
 source "board/synaptics/dolphin/Kconfig"
+source "board/synaptics/klamath/Kconfig"
 
 menu "Synaptics Specific Setup"
 

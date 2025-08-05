@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2016~2023 Synaptics Incorporated. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 or
+ * later as published by the Free Software Foundation.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND
+ * SYNAPTICS EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES,
+ * INCLUDING ANY IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE, AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY
+ * INTELLECTUAL PROPERTY RIGHTS. IN NO EVENT SHALL SYNAPTICS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE, OR
+ * CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH THE USE
+ * OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED AND
+ * BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF
+ * COMPETENT JURISDICTION DOES NOT PERMIT THE DISCLAIMER OF DIRECT
+ * DAMAGES OR ANY OTHER DAMAGES, SYNAPTICS' TOTAL CUMULATIVE LIABILITY
+ * TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
+ */
+
+/dts-v1/;
+
+#include "klamath.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Synaptics KLAMATH FPGA";
+	compatible = "Synaptics,klamath", "Synaptics,asserial";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0 0x20000000>;
+	};
+
+	chosen {
+		stdout-path = &sm_uart0;
+	};
+};
+
+&pinctrl {
+	mdio_pmux: mdio-pmux {
+		groups = "GPIO31", "GPIO32";
+		function = "rgmii";
+	};
+
+	eth0_pmux: eth0-pmux {
+		groups = "GPIO33", "GPIO34", "GPIO37", "GPIO38", "GPIO41", "GPIO43", "GPIO45";
+		function = "rmii1";
+	};
+
+	sd0_pmux: sd0-pmux {
+		groups = "GPIO12", "GPIO22", "GPIO46", "GPIO47";
+		function = "sdio1";
+	};
+};
+
+&sysmgr_pinctrl {
+	xspi0_pmux: xspi0-pmux {
+		groups = "SM_GPIO18", "SM_GPIO19", "SM_GPIO20", "SM_GPIO21",
+				 "SM_GPIO22", "SM_GPIO23", "SM_GPIO24", "SM_GPIO25",
+				 "SM_GPIO26", "SM_GPIO27", "SM_GPIO28", "SM_GPIO29",
+				 "SM_GPIO30";
+		function = "xspi";
+	};
+};
+
+&uartclk {
+		clock-frequency = <48000000>;
+};
+
+&sm_uart0 {
+	status = "okay";
+};
+
+&sdhci0 {
+	status = "okay";
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	fixed-voltage;
+};
+
+/*
+&sdhci1 {
+	status = "okay";
+	pinctrl-0 = <&sd0_pmux>;
+	pinctrl-names = "default";
+	broken-cd;
+	no-mmc;
+	no-sdio;
+	no-1-8-v;
+};
+*/
+
+&usb_phy0 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&xspi0 {
+	status = "okay";
+	pinctrl-0 = <&xspi0_pmux>;
+	pinctrl-names = "default";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		//compatible = "spi-nand";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+	};
+};
