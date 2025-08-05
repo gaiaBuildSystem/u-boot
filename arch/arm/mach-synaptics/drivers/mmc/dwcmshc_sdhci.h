@@ -258,4 +258,22 @@ u8 phy_delay[MMC_MODES_END] = {
 };
 #endif
 
+#ifdef CONFIG_TARGET_KLAMATH
+u8 phy_delay[MMC_MODES_END] = {
+	127,  /* MMC_LEGACY */
+	100, /* MMC_HS */
+	35,  /* SD_HS */
+	100, /* MMC_HS_52 */
+	60,  /* MMC_DDR_52 */
+	100, /* UHS_SDR12 */
+	100, /* UHS_SDR25 */
+	100, /* UHS_SDR50 */
+	43,  /* UHS_DDR50 */
+	43,  /* UHS_SDR104 */
+	42,  /* MMC_HS_200 */
+	21,  /* MMC_HS_400 */
+	0,   /* MMC_HS_400_ES */
+};
+#endif
+
 #endif /* __DWCMSHC_SDHCI_H */
