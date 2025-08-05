@@ -22,22 +22,4 @@
 # TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
 #
 
-obj-y += plat/	\
-	ext4/		\
-	fastboot/	\
-	mmc/		\
-	net/		\
-	usb/		\
-	pinctrl/	\
-	pmic/		\
-	reset/		\
-	spi/		\
-	xspi/		\
-	clk/		\
-	tee/		\
-	pwm/		\
-	regulator/	\
-	usbconsole/
-
-
-obj-${CONFIG_VIDEO_SYNA} += video/
+obj-$(CONFIG_CADENCE_XSPI) += cadence_xspi.o

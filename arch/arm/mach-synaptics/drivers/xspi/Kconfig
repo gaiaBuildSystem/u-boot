@@ -1,0 +1,6 @@
+config CADENCE_XSPI
+	bool "Cadence XSPI driver"
+	help
+	  Enable the Cadence XSPI driver. This driver can be
+	  used to access the XSPI devices on platforms embedding this
+	  Cadence IP core.
