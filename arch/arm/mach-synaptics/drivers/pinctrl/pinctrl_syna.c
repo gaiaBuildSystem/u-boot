@@ -42,6 +42,10 @@
 #include "pinctrl_syna_myna2.h"
 #endif
 
+#ifdef CONFIG_TARGET_KLAMATH
+#include "pinctrl_syna_klamath.h"
+#endif
+
 static int syna_pinctrl_get_groups_count(struct udevice *dev)
 {
 	struct syna_pinctrl *pctrl = dev_get_priv(dev);
@@ -265,6 +269,11 @@ static const struct udevice_id syna_pinctrl_match[] = {
 
 #ifdef CONFIG_TARGET_MYNA2
 	{	.compatible = "syna,myna2-soc-pinctrl", .data = (ulong)&myna2_soc_pinctrl_data,},
+#endif
+
+#ifdef CONFIG_TARGET_KLAMATH
+	{	.compatible = "syna,klamath-soc-pinctrl",	.data = (ulong)&klamath_soc_pinctrl_data,},
+	{	.compatible = "syna,klamath-sysmgr-pinctrl", .data = (ulong)&klamath_sysmgr_pinctrl_data,},
 #endif
 	{}
 };
