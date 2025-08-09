@@ -61,6 +61,22 @@
 #define GICD_BASE				0xf7901000
 #define GICC_BASE				0xf7902000
 
+#ifdef CONFIG_SYNA_RESCUE_MODE
+#define CFG_EXTRA_ENV_SETTINGS \
+        "upgrade_available=0\0" \
+        "rescue_load=ext4load mmc 0:2 0x10000000 Image.gz; "\
+                     "ext4load mmc 0:2 0x17c00000 board.dtb; "\
+                     "ext4load mmc 0:2 0x8c00000 initramfs.rootfs.cpio.gz\0" \
+        "rescue_setup=setenv kernel_comp_addr_r 0x7c00000; "\
+                      "setenv kernel_comp_size $filesize; "\
+                      "setenv bootm_low 0x0; "\
+                      "setenv bootm_size 0x10000000; "\
+                      "setenv bootargs shell earlycon console=ttyS0,115200 rootwait rootfstype=ext4\0" \
+        "rescue_exec=booti 0x10000000 0x8c00000:$filesize 0x17c00000\0" \
+        "rescue_boot=echo \"*** RESCUE MODE TRIGGERED ***\"; "\
+                     "run rescue_load; run rescue_setup; run rescue_exec\0"
+#else
 #define CFG_EXTRA_ENV_SETTINGS \
         "upgrade_available=0\0" \
         "altbootcmd=if test ${boot_slot} = 1; then bootslot set b; bootcount reset;bootcount reset; run bootcmd; else bootslot set a; bootcount reset; bootcount reset; run bootcmd; fi\0"
+#endif

@@ -29,6 +29,11 @@
 #include "watchdog_def.h"
 #include "mem_init.h"
 
+#ifdef CONFIG_SYNA_RESCUE_MODE
+#define GPIO_RESCUE_SET     79   // GPIO39 / PortB7
+#define GPIO_RESCUE_DETECT  78   // GPIO38 / PortB6
+#endif
+
 #if defined(CONFIG_SYNA_SPI_UBOOT) || defined(CONFIG_SYNA_USB_UBOOT)
 static void init_clock(void)
 {
@@ -400,6 +405,30 @@ static void set_chip_control(void)
 	writel(val, SOC_SM_SYS_CTRL_REG_BASE + RA_smSysCtl_SM_PORT_SEL_CTRL);
 }
 
+#ifdef CONFIG_SYNA_RESCUE_MODE
+static void setup_rescue_mode_gpio(void)
+{
+	gpio_request(GPIO_RESCUE_SET, "SET");
+	gpio_direction_output(GPIO_RESCUE_SET, 1);
+
+	gpio_request(GPIO_RESCUE_DETECT, "DETECT");
+	gpio_direction_input(GPIO_RESCUE_DETECT);
+}
+
+static void rescue_trigger_detect(void)
+{
+	// Clear detect pin to 0 briefly before reading input
+	gpio_direction_output(GPIO_RESCUE_DETECT, 0);
+	udelay(10);
+	gpio_direction_input(GPIO_RESCUE_DETECT);
+
+	if (gpio_get_value(GPIO_RESCUE_DETECT) == 1) {
+		// Boot Rescue Image
+		run_command("run rescue_boot", 0);
+	}
+}
+#endif
+
 int board_init(void)
 {
 	//board related things like clock may be inited here
@@ -422,6 +451,11 @@ extern int syna_init_mtdparts(void);
 int board_late_init(void)
 {
 	unsigned int result = 0;
+
+#ifdef CONFIG_SYNA_RESCUE_MODE
+	setup_rescue_mode_gpio();
+	rescue_trigger_detect();
+#endif
 
 #ifdef CONFIG_SYNA_TZ_MR
 	get_mem_region_list_from_tz();

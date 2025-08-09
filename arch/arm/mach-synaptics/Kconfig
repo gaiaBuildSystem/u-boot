@@ -82,6 +82,16 @@ endchoice
 
 config USE_IRQ_SYNA
 	bool "Support IRQ function of Synaptics' chip"
+
+config SYNA_RESCUE_MODE
+    bool "Enable Rescue Mode"
+    depends on ARCH_SYNAPTICS
+    help
+      Rescue Mode provides a minimal, standalone Linux environment
+      (initramfs-based) for system recovery when the main OS is
+      unbootable or corrupted. It runs entirely in RAM from a
+      separate partition and operates independently of the main
+      root filesystem.
 endmenu
 
 endif
