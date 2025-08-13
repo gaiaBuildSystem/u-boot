@@ -36,9 +36,10 @@ int TZ_MV_VPP_InitVPPS(struct berlin_fb_priv *priv)
 	return MV_VPPOBJ_Init(&vpp_init_parm);
 }
 
-int TZ_MV_VPP_Config(void)
+int TZ_MV_VPP_Config(const int *pvinport_cfg, const int *pdv_cfg,
+			const int *pzorder_cfg, const int *pvoutport_cfg, const int *pfeature_cfg)
 {
-	return MV_VPPOBJ_Config(0, NULL, NULL, NULL, NULL);
+	return MV_VPPOBJ_Config(0, pvinport_cfg, pdv_cfg, pzorder_cfg, pvoutport_cfg, pfeature_cfg);
 }
 
 int TZ_MV_VPP_Set_Format(struct berlin_fb_priv *priv)

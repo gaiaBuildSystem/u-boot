@@ -26,9 +26,52 @@
 #include "vpp_api.h"
 #include "vpp.h"
 
+#define MAX_NUM_FEATURE_CFG 1
+#define VPP_FEATURE_HDMITX	(1<<0)
+
+const INT32 gVinPortConfig[] = {
+    /* PLANE_MAIN   */ CHAN_MAIN,
+    /* PLANE_PIP    */ CHAN_PIP,
+    /* PLANE_GFX1   */ CHAN_GFX1,
+    /* PLANE_GFX2   */ CHAN_GFX2,
+    /* PLANE_AUX   */  CHAN_AUX,
+    /* PLANE_OVP_EL */ CHAN_OVP_EL,
+    /* PLANE_VMX    */ CHAN_VMX,
+};
+
+const INT32 gDVConfig[] = {
+    /* CHAN_MAIN   */ CPCB_1,
+    /* CHAN_PIP    */ CPCB_1,
+    /* CHAN_GFX1   */ CPCB_1,
+    /* CHAN_GFX2   */ CPCB_INVALID,
+    /* CHAN_AUX    */ CPCB_INVALID,
+    /* CHAN_OVP_EL */ CPCB_1,
+    /* CHAN_VMX     */CPCB_1,
+};
+
+const INT32 gZorderConfig[] = {
+    /* CHAN_MAIN   */ CPCB_ZORDER_1,
+    /* CHAN_PIP    */ CPCB_ZORDER_2,
+    /* CHAN_GFX1   */ CPCB_ZORDER_3,
+    /* CHAN_GFX2   */ CPCB_ZORDER_INVALID,
+    /* CHAN_AUX    */ CPCB_ZORDER_INVALID,
+    /* CHAN_OVP_EL */ CPCB_ZORDER_INVALID,
+    /* CHAN_VMX    */ CPCB_ZORDER_INVALID,
+};
+
+const INT32 gVoutPortConfig[] = {
+    /* VOUT_HDMI   */ CPCB_1,
+    /* VOUT_HD     */ CPCB_1,
+    /* VOUT_SD     */ CPCB_1,
+    /* VOUT_DSI    */ CPCB_1,
+};
+
+INT32 gFeatureConfig[MAX_NUM_FEATURE_CFG];
+
 int MV_VPP_Init(struct berlin_fb_priv *priv)
 {
 	int ret;
+	int feature_cfg = 0;
 
 	ret = wrap_MV_VPP_InitVPPS(priv);
 	if (ret) {
@@ -48,7 +91,11 @@ int MV_VPP_Init(struct berlin_fb_priv *priv)
 		return ret;
 	}
 
-	ret = wrap_MV_VPP_Config();
+	if(priv->vpp_config_param.hdmitx_enable)
+		feature_cfg |= (VPP_FEATURE_HDMITX);
+	gFeatureConfig[0] = feature_cfg;
+
+	ret = wrap_MV_VPP_Config(gVinPortConfig, gDVConfig, gZorderConfig, gVoutPortConfig, gFeatureConfig);
 	if (ret) {
 		printf("VPP Config failed = %d\n", ret);
 		return ret;

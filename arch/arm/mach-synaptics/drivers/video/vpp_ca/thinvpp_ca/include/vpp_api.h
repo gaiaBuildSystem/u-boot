@@ -195,6 +195,14 @@ typedef void (*voidfunc_t)(void);
 #define HDMI_SINK_ID_SIZE   7
 #define HDMI_SINK_ID_SIZE_MAX (HDMI_MAX_SINK_COUNT * HDMI_SINK_ID_SIZE)
 
+#define MAX_NUM_FEATURE_CFG 1
+
+#ifdef VPP_ALLOW_ALL_PLANES
+#define MAX_NUM_PLANES_ALL MAX_NUM_PLANES
+#else
+#define MAX_NUM_PLANES_ALL 8
+#endif
+
 // error code definitions
 typedef enum {
     MV_VPP_OK             = 0x0000,   /**< Success. */
@@ -2378,6 +2386,7 @@ typedef struct vpp_config_params {
         ARCH_PTR_TYPE data;
         VPP_MIPI_LOAD_CONFIG *mipi_config_params;
         VPP_MIPI_CONFIG_PARAMS *mipi_resinfo_params;
+        UINT32 hdmitx_enable;
 } vpp_config_params;
 
 struct berlin_fb_priv {
@@ -2740,7 +2749,7 @@ int MV_VPPOBJ_EnableBypassMode(int handle, int flag);
  * INPUT: NONE
  * RETURN: NONE
  **************************************/
-int MV_VPPOBJ_Config(int handle, const int *pvinport_cfg, const int *pdv_cfg, const int *pzorder_cfg, const int *pvoutport_cfg);
+int MV_VPPOBJ_Config(int handle, const int *pvinport_cfg, const int *pdv_cfg, const int *pzorder_cfg, const int *pvoutport_cfg, const int *pfeature_cfg);
 
 
 // to be removed when VPP suspend/resume is ready

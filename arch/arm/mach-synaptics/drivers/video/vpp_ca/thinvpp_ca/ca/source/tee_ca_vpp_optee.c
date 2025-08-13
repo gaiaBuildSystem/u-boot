@@ -167,25 +167,25 @@ int VppReset(void)
 	return param.u.value.a;
 }
 
-int VppConfig(void)
+int VppConfig(INT handle,
+		const INT *pvinport_cfg,
+		const INT *pdv_cfg,
+		const INT *pzorder_cfg,
+		const INT *pvoutport_cfg,
+		const INT *pfeature_cfg)
 {
-	struct tee_param param;
-	int ret;
+	static UINT8 cfg_mem[256];
+	int plane_size = sizeof(INT32)* (MAX_NUM_PLANES_ALL);
+	int vout_size = sizeof(INT32)* (MAX_NUM_VOUTS);
+	int feature_size = sizeof(INT32)* (MAX_NUM_FEATURE_CFG);
 
-	memset(&param, 0, sizeof(param));
-	param.attr = TEE_PARAM_ATTR_TYPE_VALUE_OUTPUT;
-	param.u.value.a = 0xDEADBEEF;
+	memcpy(&cfg_mem[0], pvinport_cfg, plane_size);
+	memcpy(&cfg_mem[plane_size], pdv_cfg, plane_size);
+	memcpy(&cfg_mem[(plane_size*2)], pzorder_cfg, plane_size);
+	memcpy(&cfg_mem[(plane_size*3)], pvoutport_cfg, vout_size);
+	memcpy(&cfg_mem[(plane_size*3)+vout_size], pfeature_cfg, feature_size);
 
-	ret = InvokeCommandHelper(VPP_CONFIG, &param, 1);
-	if (ret != 0)
-		return -ENODEV;
-
-	if (param.u.value.a != 0) {
-		debug("VPP_CONFIG failed\n");
-		return -ENODEV;
-	}
-
-	return param.u.value.a;
+	return VppInvokePassShm_Helper(&cfg_mem[0], VPP_OBJCONFIG, sizeof(cfg_mem));
 }
 
 int VppIsrHandler(unsigned int MsgId, unsigned int IntSts)

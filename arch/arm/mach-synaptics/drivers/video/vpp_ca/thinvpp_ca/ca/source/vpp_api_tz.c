@@ -106,9 +106,10 @@ INT MV_VPPOBJ_Config(INT handle,
                      const INT *pvinport_cfg,
                      const INT *pdv_cfg,
                      const INT *pzorder_cfg,
-                     const INT *pvoutport_cfg)
+                     const INT *pvoutport_cfg,
+                     const INT *pfeature_cfg)
 {
-    return VppConfig();
+	return VppConfig(handle, pvinport_cfg, pdv_cfg, pzorder_cfg, pvoutport_cfg, pfeature_cfg);
 }
 
 /*******************************************************************

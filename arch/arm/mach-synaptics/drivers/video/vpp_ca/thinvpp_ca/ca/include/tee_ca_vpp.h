@@ -47,7 +47,8 @@ int VppPassVbufInfo(unsigned int *Vbuf, unsigned int VbufSize,
 int VppInit(VPP_INIT_PARM *vpp_init_parm);
 int VppCreate(void);
 int VppReset(void);
-int VppConfig(void);
+int VppConfig(INT handle, const INT *pvinport_cfg, const INT *pdv_cfg,
+		const INT *pzorder_cfg, const INT *pvoutport_cfg, const INT *pfeature_cfg);
 int VppSetOutRes(int CpcbId, int ResId, int BitDepth);
 int VppSetRefWin(int PlaneId, int WinX, int WinY, int WinW, int WinH);
 int VppOpenDispWin(int PlaneId, int WinX, int WinY, int WinW, int WinH, int BgClr, int Alpha, int GlobalAlpha);

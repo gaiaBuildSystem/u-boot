@@ -58,9 +58,10 @@ int wrap_MV_VPP_Reset(void)
 	wrap_MV_VPP_CallFuncAndReturn(vpp_fops.MV_VPP_Reset);
 }
 
-int wrap_MV_VPP_Config(void)
+int wrap_MV_VPP_Config(const int *pvinport_cfg, const int *pdv_cfg,
+			const int *pzorder_cfg, const int *pvoutport_cfg, const int *pfeature_cfg)
 {
-	wrap_MV_VPP_CallFuncAndReturn(vpp_fops.MV_VPP_Config);
+	wrap_MV_VPP_CallFuncAndReturn(vpp_fops.MV_VPP_Config, pvinport_cfg, pdv_cfg, pzorder_cfg, pvoutport_cfg, pfeature_cfg);
 }
 
 int wrap_MV_VPP_Set_Format(struct berlin_fb_priv *priv)
