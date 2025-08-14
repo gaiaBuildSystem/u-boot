@@ -284,4 +284,8 @@
 		Null_Pkt = <0>;
 		Byte_clk = <56250>;
 	};
+
+	hdmi_tx {
+		status= "okay";
+	};
 };
