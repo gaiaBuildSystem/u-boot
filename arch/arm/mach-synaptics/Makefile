@@ -25,4 +25,4 @@
 obj-y	+= init.o mem.o reset.o timer.o misc.o
 obj-y	+= drivers/ utils/ cmd/
 
-PLATFORM_CPPFLAGS += $(if $(CONFIG_SYNA_INCLUDE_SM_FW), -I$(KBUILD_OUTPUT)/../output_sm/bin)
+PLATFORM_CPPFLAGS += $(if $(CONFIG_SYNA_INCLUDE_SM_FW), -I./../output_sm/bin)
