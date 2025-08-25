@@ -23,3 +23,15 @@ config SYNA_WSPANEL_1080P
 	depends on VIDEO_SYNA
 	help
 	  syna compatible waveshare 13.3 inch 1080P panel
+
+config DEFAULT_PANEL_DTBO
+	string "Panel default dtbo file"
+	depends on VIDEO_SYNA
+	help
+		Configures the default panel dtbo to be applied.
+
+config PANEL_DTBO_PATH
+	string "Rootfs path to dtbo file"
+	depends on VIDEO_SYNA
+	help
+		Configures the rootfs path to find panel dtbo.

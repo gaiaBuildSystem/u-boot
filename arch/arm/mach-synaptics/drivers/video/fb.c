@@ -74,6 +74,8 @@
 #define ROOTFS_B "rootfs_b"
 
 #define DSI_PANEL_DTS_PATH	"/soc/drm/dsi_panel"
+#define DEFAULT_PANEL_DTBO_PATH "/boot"
+
 DECLARE_GLOBAL_DATA_PTR;
 
 static struct udevice *backlight;
@@ -103,21 +105,18 @@ int setup_uboot_fdt_overlay(void)
 {
 	void *fdto_addr;
 	char cmd[512];
-	char *s;
-	int part_index, ret;
+	char *s, *path = DEFAULT_PANEL_DTBO_PATH;
+	int part_index, ret=1;
 	const void *blob = gd->fdt_blob;
 	void *new_fdt = (void *) BASE_DTB_WORKING_MEMORY;
 
+	/* Check if "dtbo" uboot env available */
 	s = env_get("dtbo");
-
-	if (!s) {
-		/* no dtbo found, exit uboot fdt overlay!*/
-		return -1;
-	}
 
 	fdto_addr = malloc(FDTO_SIZE);
 	if (!fdto_addr) {
 		printf("failed to malloc memory!\n");
+		/* Malloc failed, use panelcfg.h as default */
 		return -1;
 	}
 
@@ -126,26 +125,50 @@ int setup_uboot_fdt_overlay(void)
 	else
 		part_index = f_mmc_get_part_index(get_mmc_active_dev(), ROOTFS_B);
 
-	sprintf(cmd, "ext4load mmc %x:%x %p /boot/%s", get_mmc_active_dev(), part_index, fdto_addr, s);
-	ret = run_command(cmd, 0);
+	/* Use the panel DTBO path from defconfig if defined and available */
+#ifdef CONFIG_PANEL_DTBO_PATH
+	if (CONFIG_PANEL_DTBO_PATH[0] != '\0')
+		path = CONFIG_PANEL_DTBO_PATH;
+#endif
+
+	if(s) {
+		sprintf(cmd, "ext4load mmc %x:%x %p %s/%s", get_mmc_active_dev(), part_index, fdto_addr, path, s);
+		ret = run_command(cmd, 0);
+	}
+
+	/* ret is initialized to 1 - this will handle case if "s" is empty
+	 * If "s" is non-empty but invalid, run_command() will return 1 for error
+	 * Both these cases we check for CONFIG_DEFAULT_PANEL_DTBO */
 	if (ret) {
-		printf("failed to load fdto (cmd: %s)!\n", cmd);
-		goto err;
+#ifdef CONFIG_DEFAULT_PANEL_DTBO
+		if(CONFIG_DEFAULT_PANEL_DTBO[0] != '\0') {
+			s = CONFIG_DEFAULT_PANEL_DTBO;
+			sprintf(cmd, "ext4load mmc %x:%x %p %s/%s", get_mmc_active_dev(), part_index, fdto_addr, path, s);
+			ret = run_command(cmd, 0);
+		}
+#endif
+		if (ret) {
+			printf("failed to load fdto (cmd: %s)!\n", cmd);
+			/* Failed to load DTBO, use panelcfg.h as default */
+			goto err;
+		}
 	}
 
 	ret = fdt_open_into(blob, new_fdt, FDT_MAX_SIZE);
 	if (ret) {
 		printf("Failed to resize FDT: %s\n", fdt_strerror(ret));
+		/* Failed to resize FDT, use panelcfg.h as default */
 		goto err;
 	}
 
 	ret = fdt_overlay_apply(new_fdt, fdto_addr);
 	if (ret) {
 		printf("ERROR: Failed to apply overlay: %s\n", fdt_strerror(ret));
+		/* Failed to overlay DTBO, use panelcfg.h as default */
 		goto err;
 	}
 
-	/* Now the overlay applied successfully, update global blob*/
+	/* Now the overlay applied successfully, update global blob */
 	gd->fdt_blob = new_fdt;
 err:
 	free(fdto_addr);
@@ -352,12 +375,13 @@ int syna_parse_vpp_dsi_dt(struct udevice *dev)
 	memset(pResCfg->vppMipiCmd.pcmd, 0,
 		pResCfg->vppMipiCmd.bufsize + MIPI_CMD_HEADER_SIZE);
 
+	/* If "command" was available in dtb use it, else use from panelcfg.h */
 	if(dts_panel_commands) {
 		/* Use the panel commands available in the DTS */
 		memcpy(pResCfg->vppMipiCmd.pcmd + MIPI_CMD_HEADER_SIZE, dts_panel_commands,
 		       pResCfg->vppMipiCmd.bufsize);
 	} else {
-		/* Use default panel commands from panel_cfg.h*/
+		/* Use default panel commands from panelcfg.h*/
 		memcpy(pResCfg->vppMipiCmd.pcmd + MIPI_CMD_HEADER_SIZE, panel_commands,
 		       pResCfg->vppMipiCmd.bufsize);
 	}
@@ -386,6 +410,7 @@ int syna_read_config(struct udevice *dev)
 	const void *blob = gd->fdt_blob;
 	int offset, len;
 	const fdt32_t *prop;
+	ofnode node;
 
 	if((offset = fdt_path_offset(blob, "/soc/drm")) < 0) {
 		printf("Parent node not found: %d\n", offset);
@@ -412,6 +437,24 @@ int syna_read_config(struct udevice *dev)
 	if (ret) {
 		printf("Error parsing DSI DT\n");
 		return ret;
+	}
+
+	/* Fetch the ofnode for drm entry to fetch hdtx gpio */
+	node = ofnode_path("/soc/drm");
+	if (!ofnode_valid(node)) {
+		printf("Failed to find /soc/drm node\n");
+		return -ENOENT;
+	}
+	ret = gpio_request_by_name_nodev(node, "hdtx5v-gpio", 0, &enable_gpio,
+					GPIOD_IS_OUT);
+	if (ret)
+		debug("%s: Could not get reset-GPIO (err = %d)\n",
+		      dev->name, ret);
+	else {
+		ret = dm_gpio_set_value(&enable_gpio, 1);
+		if (ret)
+			debug("%s: Error while setting reset-GPIO (err = %d)\n",
+				dev->name, ret);
 	}
 
 	ret = syna_parse_lcdc_dt(dev);
@@ -712,18 +755,6 @@ static int do_show_logo(cmd_tbl_t *cmdtp, int flag, int argc,
 	if (uclass_first_device_err(UCLASS_VIDEO, &dev)) {
 		printf("Video device not found\n");
 		return -ENODEV;
-	}
-
-	ret = gpio_request_by_name(dev, "hdtx5v-gpio", 0, &enable_gpio,
-					GPIOD_IS_OUT);
-	if (ret)
-		debug("%s: Could not get reset-GPIO (err = %d)\n",
-		      dev->name, ret);
-	else {
-		ret = dm_gpio_set_value(&enable_gpio, 1);
-		if (ret)
-			debug("%s: Error while setting reset-GPIO (err = %d)\n",
-				dev->name, ret);
 	}
 
 	priv = dev_get_priv(dev);
