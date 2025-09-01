@@ -12,3 +12,8 @@ config SYNA_DOLPHIN_PMIC
 	bool "Synaptics Dolphin SoC pmic driver"
 	depends on SYNA_SUBOOT && TARGET_DOLPHIN
 	default y
+
+config SYNA_KLAMATH_PMIC
+	bool "Synaptics Klamath SoC pmic driver"
+	depends on SYNA_SUBOOT && TARGET_KLAMATH
+	default y
