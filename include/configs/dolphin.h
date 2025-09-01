@@ -79,6 +79,8 @@
 		     "run rescue_load; run rescue_setup; run rescue_exec\0"
 #else
 #define CFG_EXTRA_ENV_SETTINGS \
-	"upgrade_available=0\0" \
-	"altbootcmd=if test ${boot_slot} = 1; then bootslot set b; bootcount reset;bootcount reset; run bootcmd; else bootslot set a; bootcount reset; bootcount reset; run bootcmd; fi\0"
+        "preboot=show_logo\0" \
+		"skip_fdt_update=0x10\0" \
+        "upgrade_available=0\0" \
+        "altbootcmd=if test ${boot_slot} = 1; then bootslot set b; bootcount reset;bootcount reset; run bootcmd; else bootslot set a; bootcount reset; bootcount reset; run bootcmd; fi\0"
 #endif
