@@ -80,6 +80,12 @@ config SYNA_USB_SUBOOT
 
 endchoice
 
+config SYNA_GENX_V3
+	bool "synaptics GenX V3 image"
+	default n
+	help
+	  Use Genx V3 image format
+
 config USE_IRQ_SYNA
 	bool "Support IRQ function of Synaptics' chip"
 

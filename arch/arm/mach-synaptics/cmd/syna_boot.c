@@ -32,7 +32,11 @@
 
 #include <linux/mtd/mtd.h>
 
+#ifdef CONFIG_SYNA_GENX_V3
+#define GENX_IMAGE_HEADER_LINUX_SIZE 0
+#else
 #define GENX_IMAGE_HEADER_LINUX_SIZE 336
+#endif
 #define IMAGE_TYPE_LINUX_KERNEL 0x21
 #define LINUX_KERNEL_ADDR 0x7c00000
 #define CODETYPE_KERNEL 5
