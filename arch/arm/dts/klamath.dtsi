@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (C) 2016~2023 Synaptics Incorporated. All rights reserved.
+ * Copyright (C) 2016~2025 Synaptics Incorporated. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 or
@@ -22,7 +22,7 @@
  * TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
  */
 
-#include <dt-bindings/clock/myna2.h>
+#include <dt-bindings/clock/klamath.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
@@ -96,13 +96,19 @@
 	uartclk: uartclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <24000000>;
+		clock-frequency = <25000000>;
 	};
 
-	clk4m: clk4m {
+	sm_i2cclk: sm_i2cclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <4000000>;
+		clock-frequency = <100000000>;
+	};
+
+	emmcclk: emmcclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <200000000>;
 	};
 
 	pmu {
@@ -127,123 +133,64 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0xffffffff>;
 
-		sm_uart0: uart@e5030000 {
-			compatible = "snps,dw-apb-uart";
-			reg = <0xe5030000 0x100>;
-			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&uartclk>;
-			reg-shift = <2>;
-			status = "disabled";
-		};
+		sm {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0 0xffffffff>;
 
-		reset: chip-control@f7e10000 {
-			compatible = "synaptics,chipctrl-reset";
-			reg = <0xf7e10000 0x400>;
-			#reset-cells = <4>;
-        };
+			sm_reset: chip-control@e5025400 {
+				compatible = "synaptics,chipctrl-reset";
+				reg = <0xe5025400 0x4>;
+				#reset-cells = <4>;
+			};
 
-        pinctrl: pinctrl@f7e18000 {
-			compatible = "syna,klamath-soc-pinctrl";
-			reg = <0xf7e18000 0x18>, <0xf7e18800 0xf0>;
-		};
+			sysmgr_pinctrl: sysmgr_pinctrl@e5025b00 {
+				compatible = "syna,klamath-sysmgr-pinctrl";
+				reg = <0xe5025b00 0x8>;
+			};
 
-		sm_reset: chip-control@e5025400 {
-			compatible = "synaptics,chipctrl-reset";
-			reg = <0xe5025400 0x4>;
-			#reset-cells = <4>;
-        };
+			sm_uart0: uart@e5030000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0xe5030000 0x100>;
+				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&uartclk>;
+				reg-shift = <2>;
+				status = "disabled";
+			};
 
-		sysmgr_pinctrl: sysmgr_pinctrl@e5025b00 {
-			compatible = "syna,klamath-sysmgr-pinctrl";
-			reg = <0xe5025b00 0x8>;
-		};
+			i2c0: i2c@e5035000 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xe5035000 0x100>;
+				clocks = <&sm_i2cclk>;
+				status = "disabled";
+			};
 
-		gic: interrupt-controller@f7e59000 {
-			compatible = "arm,gic-400";
-			#interrupt-cells = <3>;
-			interrupt-controller;
-			reg = <0xf7e59000 0x1000>,
-			      <0xf7e5a000 0x2000>,
-			      <0xf7e5c000 0x2000>,
-			      <0xf7e5e000 0x2000>;
-			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
-		};
-
-		clkgate: clkgate {
-			compatible = "synaptics,generic-gate";
-			reg = <0xea0700 0x4>;
-			#clock-cells = <1>;
-		};
-
-		pwmclk: pwmclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <1000000>;
-		};
-
-		apbcoreclk: apbcoreclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <2000000>;
-		};
-
-		gmac0clk: gmac0clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clk_freq = <250000000>;
-		};
-
-		emmcclk: emmcclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <200000000>;
-		};
-
-		sdioclk: sdioclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <200000000>;
-		};
-
-		usb3clk: usb3clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <400000000>;
-		};
-
-		xspi0: spi@e5050000 {
-			compatible = "cdns,xspi-nor";
-			reg = <0xe5050000 0x2100>,
-			      <0xe7000000 0x1000>;
-            reg-names = "reg", "mem";
-            resets = <&sm_reset 0x4 0 1 0>, <&sm_reset 0x4 1 1 0>, <&sm_reset 0x4 2 1 0>;
-			status = "disabled";
+			xspi0: spi@e5050000 {
+				compatible = "cdns,xspi-nor";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xe5050000 0x2100>,
+				      <0xe7000000 0x1000>;
+				reg-names = "reg", "mem";
+				resets = <&sm_reset 0x4 0 1 0>, <&sm_reset 0x4 1 1 0>, <&sm_reset 0x4 2 1 0>;
+				status = "disabled";
+			};
 		};
 
 		sdhci0: sdhci@f7a00000 {
 			compatible = "snps,dwcmshc-sdhci";
 			reg = <0xf7a00000 0x1000>;
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk4m>, <&clk4m>;
+			clocks = <&emmcclk>, <&emmcclk>;
 			clock-names = "core", "bus";
 			resets = <&reset 0x350 5 0 0>;
 			bus-width = <8>;
 			non-removable;
 			no-sd;
 			no-sdio;
-			status = "disabled";
-		};
-
-		sdhci1: sdhci@f7a01000 {
-			compatible = "snps,dwcmshc-sdhci";
-			reg = <0xf7a01000 0x1000>;
-			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&clk4m>, <&clk4m>;
-			clock-names = "core", "bus";
-			resets = <&reset 0x350 2 0 0>;
-			reset-names = "host";
-			phy-offset = <0x300>;
-			bus-width = <4>;
 			status = "disabled";
 		};
 
@@ -273,5 +220,26 @@
 			status = "disabled";
 		};
 
+		reset: chip-control@f7e10000 {
+			compatible = "synaptics,chipctrl-reset";
+			reg = <0xf7e10000 0x400>;
+			#reset-cells = <4>;
+		};
+
+		pinctrl: pinctrl@f7e18000 {
+			compatible = "syna,klamath-soc-pinctrl";
+			reg = <0xf7e18000 0x18>, <0xf7e18800 0xf0>;
+		};
+
+		gic: interrupt-controller@f7e59000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			reg = <0xf7e59000 0x1000>,
+			     <0xf7e5a000 0x2000>,
+			     <0xf7e5c000 0x2000>,
+			     <0xf7e5e000 0x2000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		};
 	};
 };
