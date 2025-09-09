@@ -442,7 +442,7 @@
 		drm:drm {
 			compatible = "syna,vpp-fb";
 			status = "disabled";
-			u-boot,dm-pre-reloc;
+			bootph-some-ram;
 
 			dsi_panel {
 				compatible = "syna,mipi-dsi";
