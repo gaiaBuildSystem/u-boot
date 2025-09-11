@@ -62,7 +62,8 @@ typedef struct __SetClockFreq_Data_ {
 static int g_pushframe_done = 0;
 static int frm_count = 0;
 static VPP_WIN_ATTR showlogo_attr = {0x00801080, 0xFFF, 1};
-static volatile int loop_isr_count = 0;
+static int loop_isr_count;
+static int isr_enabled;
 
 VOID VPP_ISR_Handler_irq(VOID *param)
 {
@@ -84,6 +85,7 @@ void MV_VPP_Enable_IRQ(void)
 {
 	irq_install_handler(MP_BERLIN_INTR_ID(IRQ_DHUB_INTR_AVIO_0),
 			    VPP_ISR_Handler_irq, NULL);
+	isr_enabled = 1;
 }
 
 void MV_VPP_Disable_IRQ(void)
@@ -233,6 +235,9 @@ int MV_VPP_pushframe(VBUF_INFO *pVppBuf, INT planeID)
 	unsigned int size;
 	int ret;
 
+	if (isr_enabled)
+		MV_VPP_Disable_IRQ();
+
 	MV_VPPOBJ_SetPlaneMute(0, planeID, 0);
 
 	pVppBuf->m_active_left = 0;
@@ -261,6 +266,9 @@ int MV_VPP_pushframe(VBUF_INFO *pVppBuf, INT planeID)
 	if (ret != 0) {
 		printf("Diaplay frame failed\n");
 	}
+
+	if (isr_enabled)
+		MV_VPP_Enable_IRQ();
 
 	return ret;
 }
@@ -338,15 +346,17 @@ int MV_VPPOBJ_Config_Display(struct vpp_config_params *vpp_config_param)
 }
 
 int syna_get_display_modeinfo(struct berlin_fb_priv *priv, int *width,
-			      int *height, int display)
+			      int *height, int display, avio_fastlogo_info *dispinfo)
 {
 	RESOLUTION_INFO resinfo;
 
 	if (display == DISPLAY_1) {
 		resinfo = m_resinfo_table[priv->vpp_config_param.disp1_res_id];
+		dispinfo->u.cpcb0ResId = priv->vpp_config_param.disp1_res_id;
 	} else if (IS_MODE_DUAL(priv->vpp_config_param.display_mode) &&
 			 (display == DISPLAY_2)) {
 		resinfo = m_resinfo_table[priv->vpp_config_param.disp2_res_id];
+		dispinfo->u.cpcb1ResId = priv->vpp_config_param.disp2_res_id;
 	} else {
 		return -EINVAL;
 	}
@@ -359,9 +369,13 @@ int syna_get_display_modeinfo(struct berlin_fb_priv *priv, int *width,
 
 void MV_VPPOBJ_MuteDisplay(int mute)
 {
-	MV_VPPOBJ_SetPlaneMute(0, PLANE_GFX1, mute);
-	MV_VPPOBJ_SetPlaneMute(0, PLANE_MAIN, mute);
-	MV_VPPOBJ_SetPlaneMute(0, PLANE_PIP, mute);
+	if (isr_enabled)
+		MV_VPP_Disable_IRQ();
+		MV_VPPOBJ_SetPlaneMute(0, PLANE_GFX1, mute);
+		MV_VPPOBJ_SetPlaneMute(0, PLANE_MAIN, mute);
+		MV_VPPOBJ_SetPlaneMute(0, PLANE_PIP, mute);
+	if (isr_enabled)
+		MV_VPP_Enable_IRQ();
 }
 
 void MV_VPPOBJ_StopDisplay(void)

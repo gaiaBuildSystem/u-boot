@@ -35,8 +35,21 @@ typedef enum {
 	MAX_NUM_DISPLAY
 } ENUM_DISPLAY_ID;
 
+typedef struct fastlogo_info_t {
+	u32 status : 1;   // Successfully displayed logo or not
+	u32 partition : 5; //logo from partition A/B
+	u32 cpcb0ResId : 8;     //CpCb0 resolution -- may be additional bits for depth/format
+	u32 cpcb1ResId : 8;     //CpCb1 resolution
+	u32 reserved : 9;
+} FASTLOGO_INFO;
+
+typedef union  avio_fastlogo_info_u {
+	u32 fl_disp_info;
+	struct fastlogo_info_t u;
+} avio_fastlogo_info;
+
 int syna_get_display_modeinfo(struct berlin_fb_priv *priv, int *width,
-			      int *height, int display);
+			      int *height, int display, avio_fastlogo_info *dispinfo);
 
 int MV_VPPOBJ_SetFormat(struct vpp_config_params *vpp_config_param);
 int MV_VPPOBJ_Config_Display(struct vpp_config_params *vpp_config_param);

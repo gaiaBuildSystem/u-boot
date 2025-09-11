@@ -28,6 +28,7 @@
 #include "dsih_api.h"
 #include "hal_dhub.h"
 #include "vpp_api.h"
+#include "vpp_priv.h"
 #include "dsih_displays.h"
 #include "avpll.h"
 
@@ -104,7 +105,7 @@ int lcdc_push_frame(struct berlin_fb_priv *priv, VBUF_INFO *pVppBuf,
 }
 
 int syna_get_display_modeinfo(struct berlin_fb_priv *priv, int *width,
-			      int *height, int display)
+			      int *height, int display, avio_fastlogo_info *dispinfo)
 {
 	struct lcdc_config *lcdc_config_data;
 	PANEL_TIMING_INFO *pTimingInfo;

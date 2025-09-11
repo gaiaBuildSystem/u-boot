@@ -31,6 +31,7 @@
 #include "mmc.h"
 #include "misc_syna.h"
 #include "OSAL_api.h"
+#include "fastboot_syna.h"
 
 #ifdef CONFIG_GENX_ENABLE
 #include "genimg.h"
@@ -73,7 +74,7 @@ typedef struct {
 	fastlogo_info_t info[];
 } fastlogo_header_t;
 
-static char *plogoname[MAX_LOGO_NAMES] = {
+static const char *plogoname[MAX_LOGO_NAMES] = {
 	LOGO_NAME,
 	LOGO_A_NAME,
 	LOGO_B_NAME
@@ -99,7 +100,7 @@ static unsigned int syna_get_blksize(void)
 	return (unsigned int)dev_desc->blksz;
 }
 
-static bool syna_is_partition_exit(char *partition_name)
+static bool syna_is_partition_exit(const char *partition_name)
 {
 	disk_partition_t info;
 	struct blk_desc *dev_desc;
@@ -127,8 +128,8 @@ static bool syna_is_partition_exit(char *partition_name)
 	return true;
 }
 
-void* syna_emmc_read_from_offset(char *partition_name, unsigned int offset,
-				 unsigned size, void *buff)
+void *syna_emmc_read_from_offset(const char *partition_name, unsigned int offset,
+				 unsigned int size, void *buff, int *partnum)
 {
 	struct blk_desc *dev_desc;
 	disk_partition_t info;
@@ -153,6 +154,7 @@ void* syna_emmc_read_from_offset(char *partition_name, unsigned int offset,
 		printf("cannot find partition: '%s'\n", partition_name);
 		return NULL;
 	}
+	*partnum = f_mmc_get_part_index(mmc_dev, partition_name);
 
 	start_blk = info.start + (offset / dev_desc->blksz);
 	blk_cnt = size / dev_desc->blksz + 2;
@@ -183,58 +185,63 @@ static fastlogo_info_t* check_validate_logo(int width, int height, UINT8* pHEADE
 	return NULL;
 }
 
-int syna_load_logo_info (int width, int height, VBUF_INFO *pVppBuf)
+int syna_load_logo_info(int width, int height, VBUF_INFO *pVppBuf, int *partnum)
 {
 	UINT8 *pReadBuffer, *plogobuffer, *pHeader, *pLogoHeader;
 	int j;
 	bool is_partition_found = 0;
 	fastlogo_info_t *fl_header;
 	unsigned int blocksize = syna_get_blksize();
+	int ab_mode = BOOTSEL_INVALID;
+	const char *pt_name = NULL;
 
-	for (j = 0; j < MAX_LOGO_NAMES; j++) {
-		if (syna_is_partition_exit(plogoname[j])) {
-			pHeader = (UINT8*) malloc(LOGO_HEADER_SIZE +
-					(blocksize * 2));
+	ab_mode = get_current_slot();
+	if (ab_mode != BOOTSEL_A && ab_mode != BOOTSEL_B)
+		printf("fastlogo: No bootable slots found for fastlogo loading, ...!!\n");
+	else
+		pt_name = (ab_mode == BOOTSEL_A) ?  LOGO_A_NAME : LOGO_B_NAME;
 
-			debug("logo partition name %s blksize %d\n",
-					plogoname[j],
-					blocksize);
-			pLogoHeader = pHeader;
+	if (pt_name) {
+		pHeader = (UINT8 *)malloc(LOGO_HEADER_SIZE + (blocksize * 2));
 
-			pHeader = syna_emmc_read_from_offset(plogoname[j],
-					GENX_IMAGE_HEADER_FASTLOGO_SIZE,
-					LOGO_HEADER_SIZE, pHeader);
+		debug("fastlogo: logo partition name %s blksize %d\n", pt_name, blocksize);
+		pLogoHeader = pHeader;
 
-			if (!pHeader)
-			{
-				printf("Header read failed \n");
-				return -1;
-			}
+		pHeader = syna_emmc_read_from_offset(pt_name,
+				GENX_IMAGE_HEADER_FASTLOGO_SIZE,
+				LOGO_HEADER_SIZE, pHeader, partnum);
 
-			fl_header = check_validate_logo(width, height, pHeader);
-			if (fl_header) {
-				is_partition_found = 1;
-			}
-			break;
+		if (!pHeader) {
+			printf("fastlogo: Header read failed in partition - %s\n", pt_name);
+			return -1;
 		}
+
+		fl_header = check_validate_logo(width, height, pHeader);
+		if (fl_header)
+			is_partition_found = 1;
 	}
 
 	if (is_partition_found) {
 		pReadBuffer = (UINT8*)malloc((fl_header->stride *
 					fl_header->height) + (blocksize * 2));
 		if (!pReadBuffer) {
-			printf("Mem Allocation for FB fail\n");
+			printf("fastlogo: Mem Allocation for FB fail\n");
 			return -ENOMEM;
 		}
 
-		plogobuffer = syna_emmc_read_from_offset(plogoname[j],
+#ifdef CONFIG_MMC
+		plogobuffer = syna_emmc_read_from_offset(pt_name,
 				fl_header->offset + GENX_IMAGE_HEADER_FASTLOGO_SIZE,
 				(fl_header->stride * fl_header->height),
-				pReadBuffer);
+				pReadBuffer, partnum);
+#else
+		//Only support fastlogo on emmc image
+		printf("fastlogo: Not supported!!!!!!!!\n");
+		plogobuffer = NULL;
+#endif
 
-		if (!plogobuffer)
-		{
-			printf("read failed \n");
+		if (!plogobuffer) {
+			printf("fastlogo: read failed\n");
 			return -1;
 		}
 
@@ -253,7 +260,7 @@ int syna_load_logo_info (int width, int height, VBUF_INFO *pVppBuf)
 		pVppBuf->m_order = 0;
 		free(pLogoHeader);
 	} else {
-		printf("logo partition not found\n");
+		printf("fastlogo: logo partition not found\n");
 		return -1;
 	}
 

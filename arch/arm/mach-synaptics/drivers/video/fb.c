@@ -43,6 +43,7 @@
 #include <power/regulator.h>
 #include "video_bridge.h"
 #include "lt9611.h"
+#include "misc_syna.h"
 #include "fastboot_syna.h"
 #include "misc_syna.h"
 #include <dm/uclass.h>
@@ -78,11 +79,18 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+static avio_fastlogo_info fastlogo_display_info;
+
 static struct udevice *backlight;
 static struct udevice *regulator;
 static struct udevice *video_bridge;
 
 struct ctfb_res_modes video_mode;
+
+u32 get_fastlogo_status(void)
+{
+	return fastlogo_display_info.fl_disp_info;
+}
 
 typedef struct cmd_tbl_s	cmd_tbl_t;
 struct gpio_desc enable_gpio;
@@ -725,6 +733,7 @@ static int syna_load_logo_push_frame(struct berlin_fb_priv *priv, int width,
 {
 	VBUF_INFO *pVppBuf;
 	int ret;
+	int partnum;
 
 	/* Optee TA requirement, align pVppBuf memory to 4K bytes */
 	pVppBuf = (VBUF_INFO*)VPP_ALLOC_ALLIGNED(sizeof(VBUF_INFO), PAGE_SIZE);
@@ -733,12 +742,13 @@ static int syna_load_logo_push_frame(struct berlin_fb_priv *priv, int width,
 
 	memset(pVppBuf, 0, sizeof(VBUF_INFO));
 
-	ret = syna_load_logo_info(width, height, pVppBuf);
+	ret = syna_load_logo_info(width, height, pVppBuf, &partnum);
 	if (ret != 0) {
 		printf("Reading image from EMMC failed\n");
 		return ret;
 	}
 
+	fastlogo_display_info.u.partition = partnum;
 	flush_dcache_range((uintptr_t)pVppBuf,
 			   (uintptr_t)(((char *)pVppBuf) + sizeof(VBUF_INFO)));
 
@@ -771,7 +781,8 @@ static int do_show_logo(cmd_tbl_t *cmdtp, int flag, int argc,
 	priv = dev_get_priv(dev);
 
 	for (display = 0; display < MAX_NUM_DISPLAY; display++) {
-		ret = syna_get_display_modeinfo(priv, &width, &height, display);
+		ret = syna_get_display_modeinfo(priv, &width, &height, display,
+						&fastlogo_display_info.u);
 		if (!ret) {
 			ret = syna_load_logo_push_frame(priv, width, height,
 							display);
@@ -784,6 +795,14 @@ static int do_show_logo(cmd_tbl_t *cmdtp, int flag, int argc,
 	}
 
 	MV_VPP_Enable_Interrupt(priv);
+
+/* Fastlogo seamless transition is supported only in MYNA2 */
+#ifdef CONFIG_TARGET_MYNA2
+	/* Update fastlogo status for smooth transition Handling */
+	fastlogo_display_info.u.status =  1;
+#else
+	fastlogo_display_info.u.status =  0;
+#endif
 
 	ret = uclass_get_device(UCLASS_PANEL_BACKLIGHT, 0, &backlight);
 	if (!ret)
