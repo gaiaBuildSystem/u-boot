@@ -22,6 +22,8 @@
  * TO ANY PARTY SHALL NOT EXCEED ONE HUNDRED U.S. DOLLARS.
  */
 
+#ifndef __MISC_SYNA_H__
+#define __MISC_SYNA_H__
 enum {
 	DEV_EMMC = 0,
 	DEV_SD,
@@ -42,3 +44,7 @@ uint32_t get_mmc_erased_mem_cont(int mmc_dev);
 int get_mmc_partition_type(int mmc_dev);
 int get_mmc_part_by_name(int mmc_dev, const char *name);
 unsigned int get_max_malloc_size(void);
+
+u32 get_fastlogo_status(void);
+
+#endif

@@ -77,6 +77,22 @@ static void setup_cma_param(char *bootargs)
 	}
 }
 
+#ifdef CONFIG_VIDEO_SYNA
+extern u32 get_fastlogo_status(void);
+
+static void setup_fastlogo_param(char *bootargs)
+{
+	char tmp_buf[64];
+	u32 fl_status = get_fastlogo_status();
+
+	if (fl_status) {
+		memset(tmp_buf, 0x0, sizeof(tmp_buf));
+		snprintf(tmp_buf, (sizeof(tmp_buf) - 1), "avio.fastlogo_status=%d", fl_status);
+		strcat(bootargs, tmp_buf);
+	}
+}
+#endif
+
 static int setup_reserved_mem(void *fdt, struct mem_region *reserved_mem, int reserved_num)
 {
 	struct fdt_header *header = (struct fdt_header *)fdt;
@@ -305,6 +321,11 @@ int setup_bootargs(void *fdt)
 
 #ifdef CONFIG_TARGET_PLATYPUS
 	setup_fe_bgs(newbootargs);
+	strcat(newbootargs, " ");
+#endif
+
+#ifdef CONFIG_VIDEO_SYNA
+	setup_fastlogo_param(newbootargs);
 	strcat(newbootargs, " ");
 #endif
 
