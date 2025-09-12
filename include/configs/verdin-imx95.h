@@ -106,6 +106,11 @@
 	"bootm_size=0x10000000\0" \
 	"mmcdev=" __stringify(CONFIG_SYS_MMC_ENV_DEV)"\0" \
 	"mmcpart=1\0" \
+	"video_link=1\0" \
+	"splashpos=m,m\0" \
+	"splashfile=splash.bmp\0" \
+	"splashsource=mmc_fs\0" \
+	"splashimage=0xA0000000\0" \
 	"mmcroot=/dev/mmcblk1p2 rootwait rw\0" \
 	"mmcautodetect=yes\0" \
 	"mmcargs=setenv bootargs ${cpuidle} ${jh_clk} ${mcore_args} console=${console} root=${mmcroot}\0 " \
