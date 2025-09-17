@@ -219,6 +219,9 @@ static void ns16550_setbrg(struct ns16550 *com_port, int baud_divisor)
 	/* to keep serial format, read lcr before writing BKSE */
 	int lcr_val = serial_in(&com_port->lcr) & ~UART_LCR_BKSE;
 
+#ifdef CONFIG_TARGET_KLAMATH
+	writeb(7, com_port->plat->base + UART_REG_SRR_OFFSET);
+#endif
 	serial_out(UART_LCR_BKSE | lcr_val, &com_port->lcr);
 	serial_out(baud_divisor & 0xff, &com_port->dll);
 	serial_out((baud_divisor >> 8) & 0xff, &com_port->dlm);

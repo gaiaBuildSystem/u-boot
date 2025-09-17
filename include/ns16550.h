@@ -121,6 +121,9 @@ struct ns16550 {
 #define dll rbr
 #define dlm ier
 
+#ifdef CONFIG_TARGET_KLAMATH
+#define UART_REG_SRR_OFFSET 0x88
+#endif
 /*
  * These are the definitions for the FIFO Control Register
  */
