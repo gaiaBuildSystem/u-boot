@@ -339,6 +339,13 @@ static int dwcmshc_sdhci_execute_tuning(struct mmc *mmc, u8 opcode)
 	u32 timeout = 100;
 	u32 offset, val;
 	u16 valw;
+	int delay = 0;
+
+	if (opcode == MMC_CMD_SEND_TUNING_BLOCK_HS200) {
+		delay = dwcmshc_setup_hs400_phy_dll(host);
+		if (delay > 0)
+			dwcmshc_setup_phy_delayline(host, (u8)delay);
+	}
 
 	/* prepare tuning */
 	valw = sdhci_readw(host, SDHCI_HOST_CONTROL2);
