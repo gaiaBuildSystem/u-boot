@@ -166,14 +166,10 @@ static void dwc_otg_core_reset(struct udevice *dev,
 	if (ret)
 		dev_info(dev, "%s: Timeout!\n", __func__);
 
+	snpsid = readl(&regs->gsnpsid);
+
 	/* Core Soft Reset */
 	writel(DWC2_GRSTCTL_CSFTRST, &regs->grstctl);
-
-#ifdef CONFIG_SYS_BOARD_FPGA
-	snpsid = DWC2_SNPSID_DEVID_VER_5xx;
-#else
-	snpsid = readl(&regs->gsnpsid);
-#endif
 
 	if ((snpsid & DWC2_SNPSID_DEVID_MASK) == DWC2_SNPSID_DEVID_VER_5xx) {
 		ret = wait_for_bit_le32(&regs->grstctl, DWC2_GRSTCTL_CSFTRST_DONE,
