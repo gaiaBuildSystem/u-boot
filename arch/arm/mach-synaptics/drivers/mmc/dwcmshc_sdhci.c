@@ -261,8 +261,10 @@ static int dwcmshc_setup_hs400_phy_dll(struct sdhci_host *host)
 
 static int dwcmshc_setup_phy(struct sdhci_host *host)
 {
+	struct dwcmshc_sdhci_plat *plat = dev_get_plat(host->mmc->dev);
+
 	dwcmshc_setup_phy_datapath(host);
-	dwcmshc_setup_phy_delayline(host, phy_delay[MMC_LEGACY]);
+	dwcmshc_setup_phy_delayline(host, plat->mmc_type == SD_VERSION_SD ? phy_delay[SD_LEGACY] : phy_delay[MMC_LEGACY]);
 	dwcmshc_setup_phy_tuning(host);
 	dwcmshc_setup_phy_configure(host);
 
@@ -317,7 +319,7 @@ static int dwcmshc_sdhci_set_ios_post(struct sdhci_host *host)
 	}
 
 	if (host->mmc->selected_mode == MMC_LEGACY) {
-		dwcmshc_setup_phy_delayline(host, phy_delay[MMC_LEGACY]);
+		dwcmshc_setup_phy_delayline(host, plat->mmc_type == SD_VERSION_SD ? phy_delay[SD_LEGACY] : phy_delay[MMC_LEGACY]);
 		return 0;
 	}
 

@@ -207,6 +207,7 @@ struct phy_pad_setting pad_setting_3v3[PHY_PAD_SETTING_NUM] = {
 #ifdef CONFIG_TARGET_PLATYPUS
 u8 phy_delay[MMC_MODES_END] = {
 	127, /* MMC_LEGACY */
+	127, /* SD_LEGACY */
 	100, /* MMC_HS */
 	35,  /* SD_HS */
 	100, /* MMC_HS_52 */
@@ -225,6 +226,7 @@ u8 phy_delay[MMC_MODES_END] = {
 #ifdef CONFIG_TARGET_DOLPHIN
 u8 phy_delay[MMC_MODES_END] = {
 	127, /* MMC_LEGACY */
+	127, /* SD_LEGACY */
 	100, /* MMC_HS */
 	35,  /* SD_HS */
 	100, /* MMC_HS_52 */
@@ -243,6 +245,7 @@ u8 phy_delay[MMC_MODES_END] = {
 #ifdef CONFIG_TARGET_MYNA2
 u8 phy_delay[MMC_MODES_END] = {
 	127,  /* MMC_LEGACY */
+	127, /* SD_LEGACY */
 	100, /* MMC_HS */
 	35,  /* SD_HS */
 	100, /* MMC_HS_52 */
@@ -261,6 +264,7 @@ u8 phy_delay[MMC_MODES_END] = {
 #ifdef CONFIG_TARGET_KLAMATH
 u8 phy_delay[MMC_MODES_END] = {
 	127,  /* MMC_LEGACY */
+	127, /* SD_LEGACY */
 	100, /* MMC_HS */
 	35,  /* SD_HS */
 	100, /* MMC_HS_52 */
