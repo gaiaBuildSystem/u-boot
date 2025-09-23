@@ -63,7 +63,7 @@
 #endif
 
 #define CONFIG_GICV2
-#define GICD_BASE       0xf7901000
-#define GICC_BASE       0xf7902000
+#define GICD_BASE       0xf7e59000
+#define GICC_BASE       0xf7e5a000
 
 #define CONFIG_EXTRA_ENV_SETTINGS "upgrade_available=0\0" "altbootcmd=if test ${boot_slot}  = 1; then bootslot set b; bootcount reset;bootcount reset; run bootcmd; else bootslot set a; bootcount reset; bootcount reset; run bootcmd;  fi"

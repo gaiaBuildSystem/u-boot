@@ -417,8 +417,6 @@
 #define        SIZE_HIGH_ROM_VECTOR                0x10000 
 #define     DEC_BIT_HIGH_ROM_VECTOR                0X10 
 
-#ifdef CONFIG_SYS_BOARD_FPGA
 #define MEMMAP_CHIP_CTRL_REG_BASE START_CHIP_CTRL_REG
 #define Gbl_bootStrap_bootSrc_ROM_SPI_BOOT Gbl_bootStrap_bootSrc_ROM_BOOT_FROM_XSPI
 #define MEMMAP_CA7_REG_BASE START_ACPU_REG
-#endif
