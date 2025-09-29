@@ -26,7 +26,7 @@
 #define __MEM_INIT_H__
 
 #define MAX_REGION_COUNT 16
-#define MAX_SYSTEM_POOL_NUM 2
+#define MAX_SYSTEM_POOL_NUM 3
 
 /* memory region */
 struct mem_region {

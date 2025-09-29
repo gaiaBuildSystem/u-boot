@@ -194,7 +194,12 @@ static int setup_system_mem(void *fdt, struct mem_region *system_mem, int system
 	fdt_get_property(fdt, offset, "reg", &len);
 
 	for (i = 0; i < system_num; i++) {
-		mem_region_property[memcount++] = cpu_to_fdt32(0x0);
+		mem_region_property[memcount] = cpu_to_fdt32(0x0);
+#ifdef CONFIG_TARGET_KLAMATH
+		if (system_mem[i].base == 0xE0000000)
+			mem_region_property[memcount] = cpu_to_fdt32(0x1);
+#endif
+		memcount++;
 		mem_region_property[memcount++] = cpu_to_fdt32(system_mem[i].base);
 
 		mem_region_property[memcount++] = cpu_to_fdt32(0x0);
