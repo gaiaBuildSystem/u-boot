@@ -334,7 +334,10 @@ int setup_bootargs(void *fdt)
 	strcat(newbootargs, " ");
 #endif
 
+#ifndef CONFIG_TARGET_KLAMATH
 	setup_cma_param(newbootargs);
+#endif
+
 	env_set("bootargs", newbootargs);
 
 	return 0;
