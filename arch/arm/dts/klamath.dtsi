@@ -220,6 +220,32 @@
 			status = "disabled";
 		};
 
+		usb1: usb@f7b20000 {
+			compatible = "snps,dwc2";
+			reg = <0xf7b20000 0x10000>;
+			phys = <&usb_phy1>;
+			phy-names = "usb2-phy1";
+			clocks = <&osc>;
+			clock-names = "core";
+			resets = <&reset 0x350 8 0 0>, <&reset 0x360 4 1 0>, <&reset 0x360 5 1 0>;
+			interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+			dr_mode = "host";
+			g-rx-fifo-size = <512>;
+			g-np-tx-fifo-size = <64>;
+			g-tx-fifo-size = <256 256 256 256 256 128  64 64
+					64  64  64  64  64  64  64>;
+			status = "disabled";
+		};
+
+		usb_phy1: phy@f7b31000 {
+			compatible = "syna,usb2-phy";
+			reg = <0xf7b31000 0x100>;
+			#phy-cells = <0>;
+			resets = <&reset 0x360 3 1 0>;
+			reset-names = "phy";
+			status = "disabled";
+		};
+
 		reset: chip-control@f7e10000 {
 			compatible = "synaptics,chipctrl-reset";
 			reg = <0xf7e10000 0x400>;
