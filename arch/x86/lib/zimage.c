@@ -16,6 +16,7 @@
 
 #include <bootm.h>
 #include <command.h>
+#include <efi.h>
 #include <env.h>
 #include <init.h>
 #include <irq_func.h>
@@ -367,6 +368,43 @@ int setup_zimage(struct boot_params *setup_base, char *cmd_line, int auto_boot,
 
 	if (IS_ENABLED(CONFIG_EFI_STUB))
 		setup_efi_info(&setup_base->efi_info);
+	else if (IS_ENABLED(CONFIG_EFI_APP)) {
+		/* We are an EFI application, get info directly from EFI */
+		int ret;
+		struct efi_priv *priv = efi_get_priv();
+		struct efi_mem_desc *desc;
+		int size, desc_size;
+		uint key, version;
+		char *signature;
+
+		memset(&setup_base->efi_info, 0, sizeof(struct efi_info));
+
+		if (!priv) {
+			log_warning("Cannot get EFI priv structure\n");
+			return 0;
+		}
+
+		/* Get system table address */
+		setup_base->efi_info.efi_systab = (u32)(uintptr_t)priv->sys_table;
+
+		/* Get memory map */
+		ret = efi_get_mmap(&desc, &size, &key, &desc_size, &version);
+		if (!ret) {
+			setup_base->efi_info.efi_memdesc_size = desc_size;
+			setup_base->efi_info.efi_memdesc_version = version;
+			setup_base->efi_info.efi_memmap = (u32)(uintptr_t)desc;
+			setup_base->efi_info.efi_memmap_size = size;
+
+#ifdef CONFIG_EFI_APP_64BIT
+			setup_base->efi_info.efi_systab_hi = (uintptr_t)priv->sys_table >> 32;
+			setup_base->efi_info.efi_memmap_hi = (uintptr_t)desc >> 32;
+			signature = EFI64_LOADER_SIGNATURE;
+#else
+			signature = EFI32_LOADER_SIGNATURE;
+#endif
+			memcpy(&setup_base->efi_info.efi_loader_signature, signature, 4);
+		}
+	}
 
 	return 0;
 }
