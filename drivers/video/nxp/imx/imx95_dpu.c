@@ -22,6 +22,7 @@
 #include <panel.h>
 #include <video_bridge.h>
 #include <video_link.h>
+#include <dsi_host.h>
 #include <clk.h>
 #include <regmap.h>
 #include <syscon.h>
@@ -397,6 +398,8 @@ static void dpu95_fl_set_baseaddress(struct imx95_dpu_priv *priv,
 {
 	writel(lower_32_bits(baddr), priv->regs_fetchlayer + 0x18);
 	writel(upper_32_bits(baddr), priv->regs_fetchlayer + 0x1c);
+
+	debug("DPU95 FL set base address: 0x%llx\n", (unsigned long long)baddr);
 }
 
 static void dpu95_fl_set_pixel_blend_mode(struct imx95_dpu_priv *priv,
@@ -436,6 +439,8 @@ static void dpu95_fl_enable_src_buf(struct imx95_dpu_priv *priv, bool enable)
 {
 	clrsetbits_le32(priv->regs_fetchlayer + 0x48, SOURCEBUFFERENABLE,
 			    enable ? SOURCEBUFFERENABLE : 0);
+
+	debug("DPU95 FL source buffer %s\n", enable ? "enabled" : "disabled");
 }
 
 static void dpu95_fl_set_fmt(struct imx95_dpu_priv *priv, enum video_log2_bpp bpix, enum video_format format)
@@ -459,7 +464,7 @@ static void dpu95_fl_set_stream_id(struct imx95_dpu_priv *priv, unsigned int str
 	ret = regmap_update_bits(priv->regmap, PLANE_ASSOCIATION,
 				 FRAC_PLANE(0), stream_id ? FRAC_PLANE(0) : 0);
 	if (ret < 0)
-		printf("failed to set association Frac plane 0 bit: %d\n", ret);
+		debug("failed to set association Frac plane 0 bit: %d\n", ret);
 }
 
 static void dpu95_lb_mode(struct imx95_dpu_priv *priv, enum dpu95_lb_mode mode)
@@ -577,18 +582,24 @@ static void dpu95_fg_cfg_videomode(struct imx95_dpu_priv *priv,
 	/* constant color is green(used in panic mode)  */
 	writel(CCGREEN(0x3ff), priv->regs_framegen + FGCCR);
 
-	if (enc_is_dsi)
-		clk_set_rate(&priv->clk_pix, priv->timings.pixelclock.typ);
+	ulong rate;
+
+	if (enc_is_dsi) {
+		rate = clk_set_rate(&priv->clk_pix, priv->timings.pixelclock.typ);
+		debug("DPU: Set pixel clock to %lu Hz (requested %d Hz)\n", rate, priv->timings.pixelclock.typ);
+	}
 
 	ret = regmap_update_bits(priv->regmap, CLOCK_CTRL, DSIP_CLK_SEL(priv->disp_id),
 				 enc_is_dsi ? CCM : LVDS_PLL_7(priv->disp_id));
 	if (ret < 0)
-		printf("FrameGen0 failed to set DSIP_CLK_SEL: %d\n", ret);
+		debug("FrameGen0 failed to set DSIP_CLK_SEL: %d\n", ret);
 }
 
 static void dpu95_fg_enable(struct imx95_dpu_priv *priv, bool enable)
 {
 	writel(enable ? FGEN : 0, priv->regs_framegen + FGENABLE);
+
+	debug("FrameGen %s\n", enable ? "enabled" : "disabled");
 }
 
 static void dpu95_fg_displaymode(struct imx95_dpu_priv *priv, enum dpu95_fg_dm mode)
@@ -598,9 +609,11 @@ static void dpu95_fg_displaymode(struct imx95_dpu_priv *priv, enum dpu95_fg_dm m
 
 static void dpu95_fg_enable_clock(struct imx95_dpu_priv *priv, bool enc_is_dsi, bool enable)
 {
+	int ret;
 	if (enable) {
 		if (enc_is_dsi) {
-			clk_enable(&priv->clk_pix);
+			ret = clk_enable(&priv->clk_pix);
+			debug("DPU: Enabling disp1pix clock for DSI: ret=%d\n", ret);
 		} else {
 			clk_enable(&priv->clk_ldbvco);
 			clk_enable(&priv->clk_ldb);
@@ -990,7 +1003,7 @@ static int imx95_dpu_probe(struct udevice *dev)
 #if defined(CONFIG_ANDROID_SUPPORT) && defined(CONFIG_IMX_TRUSTY_OS)
 	ret = trusty_simple_fast_call32(SMC_IMX_ECHO, 0, 0, 0);
 	if (ret) {
-		printf("failed to get response of echo. Trusty may not be active.\n"); \
+		debug("failed to get response of echo. Trusty may not be active.\n"); \
 		return ret;
 	}
 #endif

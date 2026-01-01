@@ -149,7 +149,7 @@
 			  <&scmi_clk IMX95_CLK_VIDEOPLL1_VCO>,
 			  <&scmi_clk IMX95_CLK_VIDEOPLL1>;
 	assigned-clock-parents = <&scmi_clk IMX95_CLK_VIDEOPLL1>;
-	assigned-clock-rates = <0>, <4008000000>, <445333334>;
+	assigned-clock-rates = <0>, <0>, <445333334>;
 	status = "disabled";
 };
 
@@ -405,7 +405,7 @@
 	};
 
 	/* SMARC DP0 */
-	som_dsi2dp_bridge: bridge@2c {
+	som_dsi2dp_bridge: dp@2c {
 		compatible = "ti,sn65dsi86";
 		reg = <0x2c>;
 		clocks = <&clk_dsi2dp_bridge>;

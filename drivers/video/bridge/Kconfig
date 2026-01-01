@@ -40,3 +40,13 @@ config VIDEO_BRIDGE_SOLOMON_SSD2825
 	select VIDEO_MIPI_DSI
 	help
 	  Solomon SSD2824 SPI RGB-DSI bridge driver wrapped into panel uClass.
+
+config VIDEO_BRIDGE_TI_SN65DSI86
+	bool "TI SN65DSI86 DSI to eDP bridge"
+	depends on VIDEO_BRIDGE
+	select DM_I2C
+	help
+	  The TI SN65DSI86 is a DSI to eDP bridge chip. It enables an eDP LCD
+	  panel to be connected to a DSI output from an application processor.
+	  The bridge supports up to 4 lanes of DSI input and up to 4 lanes of
+	  eDP output. It handles the conversion and link training automatically.

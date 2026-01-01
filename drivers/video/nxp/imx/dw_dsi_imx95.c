@@ -27,6 +27,7 @@
 #include <regmap.h>
 #include <syscon.h>
 #include <div64.h>
+#include <linux/delay.h>
 
 #define DSI_DPI_CFG_POL			0x14
 #define  COLORM_ACTIVE_LOW		BIT(4)
@@ -672,6 +673,11 @@ static int imx95_dsi_phy_init(void *priv_data)
 
 	regmap_write(dsi->mst, DSI_CLOCK_SETTING, 0);
 
+	u32 host_cfg, clk_setting;
+	regmap_read(dsi->str, DSI_HOST_CONFIGURATION, &host_cfg);
+	regmap_read(dsi->mst, DSI_CLOCK_SETTING, &clk_setting);
+	debug("DSI Host Config: 0x%08x, Clock Setting: 0x%08x\n", host_cfg, clk_setting);
+
 	debug("dsi bpp %u, lane %u\n", bpp, dsi->lanes);
 
 	switch (bpp) {
@@ -742,6 +748,7 @@ imx95_dsi_phy_get_lane_mbps(void *priv_data, struct display_timing *timings,
 	*lane_mbps = dsi->lane_mbps;
 
 	debug("lane_mbps %u, bpp %d\n", *lane_mbps, bpp);
+	debug("pixelclock %u, lanes %u\n", timings->pixelclock.typ, lanes);
 
 	ret = phy_mipi_dphy_get_default_config(timings->pixelclock.typ,
 					       bpp, lanes,
@@ -865,6 +872,26 @@ static const struct mipi_dsi_phy_ops imx95_dsi_phy_ops = {
 	.get_timing = imx95_dsi_phy_get_timing,
 };
 
+static void imx95_dsi_dump_status(struct imx95_dsi_priv *dsi)
+{
+	struct mipi_dsi_device *device = &dsi->device;
+	struct udevice *dev = device->dev;
+	u32 parity_err, phy_status;
+
+	parity_err = imx95_dsi_read(dsi, DSI_PARITY_ERROR_STATUS);
+	phy_status = imx95_dsi_read(dsi, PHY_TEST_MODE_STATUS);
+
+	dev_dbg(dev, "DSI_PARITY_ERROR_STATUS: 0x%08x\n", parity_err);
+	dev_dbg(dev, "PHY_TEST_MODE_STATUS:  0x%08x\n", phy_status);
+
+	if (parity_err) {
+		dev_dbg(dev, "Clearing DSI parity error...\n");
+		imx95_dsi_write(dsi, DSI_PARITY_ERROR_STATUS, parity_err);
+		parity_err = imx95_dsi_read(dsi, DSI_PARITY_ERROR_STATUS);
+		dev_dbg(dev, "After clear: DSI_PARITY_ERROR_STATUS: 0x%08x\n", parity_err);
+	}
+}
+
 static int imx95_dsi_attach(struct udevice *dev)
 {
 	struct imx95_dsi_priv *priv = dev_get_priv(dev);
@@ -884,6 +911,9 @@ static int imx95_dsi_attach(struct udevice *dev)
 
 	mplat = dev_get_plat(priv->panel);
 	mplat->device = &priv->device;
+	device->lanes = mplat->lanes;
+	device->format = mplat->format;
+	device->mode_flags = mplat->mode_flags;
 
 	ret = video_link_get_display_timings(&timings);
 	if (ret) {
@@ -915,6 +945,9 @@ static int imx95_dsi_attach(struct udevice *dev)
 		return ret;
 	}
 
+    /* Dump DSI status after host init for debug */
+    imx95_dsi_dump_status(priv);
+
 	return 0;
 }
 
@@ -922,6 +955,9 @@ static int imx95_dsi_set_backlight(struct udevice *dev, int percent)
 {
 	struct imx95_dsi_priv *priv = dev_get_priv(dev);
 	int ret;
+
+	dev_dbg(dev, "imx95_dsi_set_backlight: percent=%d\n", percent);
+	imx95_dsi_dump_status(priv);
 
 	ret = panel_enable_backlight(priv->panel);
 	if (ret) {
