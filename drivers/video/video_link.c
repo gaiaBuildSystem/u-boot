@@ -568,6 +568,12 @@ int video_link_shut_down(void)
 {
 	struct udevice *video_dev = video_link_get_video_device();
 
+	/* If preserve_display is set, keep the video device active so the
+	 * signal remains up during kernel handoff. This allows smoother
+	 * transition when the kernel takes over the display. */
+	if (env_get_yesno("preserve_display") == 1)
+		return 0;
+
 	if (video_dev)
 		device_remove(video_dev, DM_REMOVE_NORMAL);
 
