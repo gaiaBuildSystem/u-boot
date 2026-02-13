@@ -546,7 +546,7 @@ int syna_read_config(struct udevice *dev)
 		return ret;
 	}
 
-	read_boot_file(priv);
+	// read_boot_file(priv);
 
 	return ret;
 }
@@ -862,7 +862,8 @@ static int do_show_logo(struct cmd_tbl *cmdtp, int flag, int argc,
 		return 0;
 
 	/* Invoke the DTB overlay before video device probed */
-	setup_uboot_fdt_overlay();
+	// TODO: this is messing witht he rootfs
+	// setup_uboot_fdt_overlay();
 
 	if (uclass_first_device_err(UCLASS_VIDEO, &dev)) {
 		printf("Video device not found\n");
