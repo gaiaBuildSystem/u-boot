@@ -33,7 +33,6 @@
 
 #ifdef CONFIG_MMC
 #include "mmc.h"
-#define CONFIG_MISC_IN_MMC 1
 #endif
 
 #ifdef CONFIG_SPI_FLASH_MTD
@@ -107,198 +106,14 @@ static bool slot_is_bootable(misc_slot_metadata_t *p_slot)
 
 static int write_bootctrl_metadata(void *p_bootctrl)
 {
-#ifdef CONFIG_MISC_IN_MMC
-	if (!p_bootctrl) {
-		printf("ERROR: invalid bootctrl metadata for write !\n");
-		return -1;
-	}
-
-	struct blk_desc *dev_desc;
-	struct disk_partition info;
-	lbaint_t strat_blk, size_blk;
-	int mmc_dev = get_mmc_boot_dev();
-	struct mmc *mmc = find_mmc_device(mmc_dev);
-	char *partition_name = "misc";
-
-	if (!mmc) {
-		printf("invalid mmc device\n");
-		return -1;
-	}
-
-	dev_desc = blk_get_dev("mmc", mmc_dev);
-	if (!dev_desc || dev_desc->type == DEV_TYPE_UNKNOWN) {
-		printf("invalid mmc device\n");
-		return -1;
-	}
-
-	blk_dselect_hwpart(dev_desc, get_mmc_part_by_name(mmc_dev, partition_name));
-
-	if (part_get_info_by_name(dev_desc, partition_name, &info) == -1) {
-		printf("cannot find partition: '%s'\n", partition_name);
-		return -1;
-	}
-	strat_blk = info.start + 4096 / dev_desc->blksz;
-	size_blk = (sizeof(misc_boot_ctrl_t) + dev_desc->blksz) / dev_desc->blksz;
-	blk_dwrite(dev_desc, strat_blk, size_blk, p_bootctrl);
-
-	return 0;
-#else
-	struct disk_partition info;
-	loff_t start;
-	size_t write_len;
-	size_t write;
-	int ret = -1;
-	struct erase_info erase_op = {};
-	struct mtd_info *mtd = get_mtd_device(NULL, 0);
-
-	if (IS_ERR_OR_NULL(mtd)) {
-		puts("\nno devices available\n");
-		goto out;
-	}
-
-	char *partition_name = "misc";
-
-	if (syna_mtdparts_get_info_by_name(mtd, partition_name, &info) == -1) {
-		printf("cannot find partition: '%s'\n", partition_name);
-		goto out;
-	}
-	start = (info.start * info.blksz) + 4096;
-	write_len = sizeof(misc_boot_ctrl_t);
-
-	erase_op.mtd = mtd;
-	erase_op.addr = (start & (~(mtd->erasesize - 1)));
-	erase_op.len = mtd->erasesize;
-	erase_op.scrub = 0;
-
-	ret = mtd_erase(mtd, &erase_op);
-	if (ret) {
-		printf("%s: erase() failed for block at 0x%llx: %d\n",
-		       mtd->name, erase_op.addr, ret);
-		goto out;
-	}
-
-	ret = mtd_write(mtd, start, write_len, &write, p_bootctrl);
-	if (ret || write != write_len) {
-		printf("%s: write() failed for block at 0x%llx: %d\n",
-		       mtd->name, start, ret);
-		goto out;
-	}
-	ret = 0;
-
-out:
-	if (!IS_ERR_OR_NULL(mtd))
-		put_mtd_device(mtd);
-
-	return ret;
-#endif
 }
 
 static int get_bootctrl_metadata(void *p_bootctrl)
 {
-#ifdef CONFIG_MISC_IN_MMC
-	if (!p_bootctrl) {
-		printf("Error: invalid parameter p_bootctrl !\n");
-		return -1;
-	}
-
-	struct blk_desc *dev_desc;
-	struct disk_partition info;
-	lbaint_t strat_blk;
-	int mmc_dev = get_mmc_boot_dev();
-	struct mmc *mmc = find_mmc_device(mmc_dev);
-	char *misc_bootctrl;
-	char *partition_name = "misc";
-
-	if (!mmc) {
-		printf("invalid mmc device\n");
-		return -1;
-	}
-
-	dev_desc = blk_get_dev("mmc", mmc_dev);
-	if (!dev_desc || dev_desc->type == DEV_TYPE_UNKNOWN) {
-		printf("invalid mmc device\n");
-		return -1;
-	}
-
-	blk_dselect_hwpart(dev_desc, get_mmc_part_by_name(mmc_dev, partition_name));
-
-	if (part_get_info_by_name(dev_desc, partition_name, &info) == -1) {
-		printf("cannot find partition: '%s'\n", partition_name);
-		return -1;
-	}
-
-	misc_bootctrl = (void *)malloc(dev_desc->blksz);
-	strat_blk = info.start + 4096 / dev_desc->blksz;
-	blk_dread(dev_desc, strat_blk, 1, misc_bootctrl);
-	memcpy(p_bootctrl, (void *)misc_bootctrl, sizeof(misc_boot_ctrl_t));
-
-	free(misc_bootctrl);
-
-	return 0;
-#else
-	struct disk_partition info;
-	loff_t start;
-	int ret = -1;
-	struct mtd_info *mtd = get_mtd_device(NULL, 0);
-	size_t read;
-
-	if (IS_ERR_OR_NULL(mtd)) {
-		puts("\nno devices available\n");
-		return 1;
-	}
-
-	char *partition_name = "misc";
-
-	if (syna_mtdparts_get_info_by_name(mtd, partition_name, &info) == -1) {
-		printf("cannot find partition: '%s'\n", partition_name);
-		goto out;
-	}
-
-	start = (info.start * info.blksz) + 4096;
-	ret = mtd_read(mtd, start, sizeof(misc_boot_ctrl_t), &read, p_bootctrl);
-
-	if ((ret && ret != -EUCLEAN) || read != sizeof(misc_boot_ctrl_t)) {
-		printf("%s: read() failed for block at 0x%llx: %d\n",
-		       mtd->name, start, ret);
-		goto out;
-	}
-
-	ret = 0;
-
-out:
-	if (!IS_ERR_OR_NULL(mtd))
-		put_mtd_device(mtd);
-
-	return ret;
-#endif
 }
 
 static int init_bootctrl(misc_boot_ctrl_t *p_bootctrl, int default_slot)
 {
-	if (default_slot > 1) {
-		printf("invalid default slot number for bootctrl !\n");
-		return -1;
-	}
-
-	memset((void *)p_bootctrl, 0, sizeof(misc_boot_ctrl_t));
-
-	p_bootctrl->slot_info[default_slot].priority		    = 8;
-	p_bootctrl->slot_info[default_slot].tries_remaining	= 2;
-	p_bootctrl->slot_info[default_slot].successful_boot	= 0;
-
-	p_bootctrl->slot_info[1 - default_slot].priority		    = 3;
-	p_bootctrl->slot_info[1 - default_slot].tries_remaining	= 2;
-	p_bootctrl->slot_info[1 - default_slot].successful_boot	= 0;
-
-	p_bootctrl->version	= MISC_BOOT_CONTROL_VERSION;
-	p_bootctrl->magic	= BOOTCTRL_MAGIC;
-
-	if (write_bootctrl_metadata(p_bootctrl)) {
-		printf("Error: fail to write misc bootctrl metadata !\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 int get_current_slot(void)

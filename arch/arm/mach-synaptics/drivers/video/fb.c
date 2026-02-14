@@ -546,8 +546,6 @@ int syna_read_config(struct udevice *dev)
 		return ret;
 	}
 
-	// read_boot_file(priv);
-
 	return ret;
 }
 
