@@ -76,4 +76,34 @@ config VIRTIO_RNG
 	help
 	  This is the virtual random number generator driver. It can be used
 	  with QEMU based targets.
+
+config VIRTIO_GPU
+	bool "virtio GPU driver"
+	depends on VIRTIO && VIDEO
+	help
+	  This is the 2D display driver for the virtio-gpu-pci device.
+	  It exposes a U-Boot video uclass framebuffer backed by guest RAM
+	  and drives the display via the virtio-gpu control virtqueue.
+	  It can be used with QEMU targets that include a virtio-gpu-pci
+	  device (e.g. -device virtio-gpu-pci).
+
+if VIRTIO_GPU
+
+config VIDEO_VIRTIO_GPU_XRES
+	int "virtio-gpu default horizontal resolution"
+	default 1280
+	help
+	  Horizontal resolution (pixels) used when the host does not report
+	  a display size via GET_DISPLAY_INFO, and also as the upper bound
+	  for the framebuffer memory reserved at bind time.
+
+config VIDEO_VIRTIO_GPU_YRES
+	int "virtio-gpu default vertical resolution"
+	default 800
+	help
+	  Vertical resolution (pixels) used when the host does not report
+	  a display size via GET_DISPLAY_INFO, and also as the upper bound
+	  for the framebuffer memory reserved at bind time.
+
+endif # VIRTIO_GPU
 endmenu
