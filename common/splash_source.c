@@ -159,6 +159,9 @@ static int splash_select_fs_dev(struct splash_location *location)
 		else
 			res = -ENODEV;
 		break;
+	case SPLASH_STORAGE_VIRTIO:
+		res = fs_set_blk_dev("virtio", location->devpart, FS_TYPE_ANY);
+		break;
 	default:
 		printf("Error: unsupported location storage.\n");
 		return -ENODEV;

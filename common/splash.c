@@ -57,6 +57,12 @@ static struct splash_location default_splash_locations[] = {
 		.flags = SPLASH_STORAGE_FS,
 		.devpart = "0:1",
 	},
+	{
+		.name = "virtio_fs",
+		.storage = SPLASH_STORAGE_VIRTIO,
+		.flags = SPLASH_STORAGE_FS,
+		.devpart = "0:1",
+	},
 };
 
 #ifdef CONFIG_VIDEO_LOGO
