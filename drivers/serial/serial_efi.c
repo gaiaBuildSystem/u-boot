@@ -19,6 +19,7 @@
 struct serial_efi_priv {
 	struct efi_simple_text_input_protocol *con_in;
 	struct efi_simple_text_output_protocol *con_out;
+	struct efi_simple_text_output_protocol *std_err;
 	struct efi_input_key key;
 	bool have_key;
 };
@@ -79,6 +80,7 @@ static int serial_efi_getc(struct udevice *dev)
 static int serial_efi_putc(struct udevice *dev, const char ch)
 {
 	struct serial_efi_priv *priv = dev_get_priv(dev);
+	struct efi_simple_text_output_protocol *out;
 	uint16_t ucode[2];
 	int ret;
 
@@ -86,7 +88,12 @@ static int serial_efi_putc(struct udevice *dev, const char ch)
 	ucode[1] = '\0';
 
 #ifndef CONFIG_DISABLE_CONSOLE
-	ret = priv->con_out->output_string(priv->con_out, ucode);
+	/*
+	 * Prefer StdErr when available: some firmware routes it to serial-only,
+	 * while ConOut may be mirrored to video.
+	 */
+	out = priv->std_err ? priv->std_err : priv->con_out;
+	ret = out->output_string(out, ucode);
 	if (ret)
 		return -EIO;
 #endif
@@ -123,11 +130,13 @@ static inline void _debug_uart_init(void)
 static inline void _debug_uart_putc(int ch)
 {
 	struct efi_system_table *sys_table = efi_get_sys_table();
+	struct efi_simple_text_output_protocol *out;
 	uint16_t ucode[2];
 
 	ucode[0] = ch;
 	ucode[1] = '\0';
-	sys_table->con_out->output_string(sys_table->con_out, ucode);
+	out = sys_table->std_err ? sys_table->std_err : sys_table->con_out;
+	out->output_string(out, ucode);
 }
 
 DEBUG_UART_FUNCS
@@ -139,6 +148,7 @@ static int serial_efi_probe(struct udevice *dev)
 
 	priv->con_in = table->con_in;
 	priv->con_out = table->con_out;
+	priv->std_err = table->std_err;
 
 	return 0;
 }
