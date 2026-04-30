@@ -505,7 +505,5 @@ U_BOOT_DRIVER(virtio_gpu) = {
 	.ops		= &virtio_gpu_video_ops,
 	.bind		= virtio_gpu_bind,
 	.probe		= virtio_gpu_probe,
-	.remove		= virtio_reset,
 	.priv_auto	= sizeof(struct virtio_gpu_priv),
-	.flags		= DM_FLAG_ACTIVE_DMA,
 };
