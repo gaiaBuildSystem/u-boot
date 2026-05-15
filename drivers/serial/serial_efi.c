@@ -20,6 +20,7 @@ struct serial_efi_priv {
 	struct efi_simple_text_input_protocol *con_in;
 	struct efi_simple_text_output_protocol *con_out;
 	struct efi_simple_text_output_protocol *std_err;
+	struct efi_serial_io_protocol *serial_io;
 	struct efi_input_key key;
 	bool have_key;
 };
@@ -80,22 +81,41 @@ static int serial_efi_getc(struct udevice *dev)
 static int serial_efi_putc(struct udevice *dev, const char ch)
 {
 	struct serial_efi_priv *priv = dev_get_priv(dev);
-	struct efi_simple_text_output_protocol *out;
-	uint16_t ucode[2];
-	int ret;
-
-	ucode[0] = ch;
-	ucode[1] = '\0';
-
 #ifndef CONFIG_DISABLE_CONSOLE
+	struct efi_simple_text_output_protocol *out;
+	uint16_t ucode[3];
+	efi_uintn_t sz;
+	int ulen = 0;
+
 	/*
-	 * Prefer StdErr when available: some firmware routes it to serial-only,
-	 * while ConOut may be mirrored to video.
+	 * Prefer EFI_SERIAL_IO_PROTOCOL: it writes directly to the UART and
+	 * is not affected by how the firmware maps ConOut/StdErr to devices,
+	 * so it never accidentally ends up on the video console.
 	 */
+	if (priv->serial_io) {
+		char buf = ch;
+
+		sz = 1;
+		if (!priv->serial_io->write(priv->serial_io, &sz, &buf))
+			return 0;
+	}
+
+	/*
+	 * Fallback: text output protocols.  Some firmware routes StdErr to
+	 * serial-only while ConOut is mirrored to video; try StdErr first.
+	 * Many UEFI firmwares require an explicit CR before LF.
+	 */
+	if (ch == '\n') {
+		ucode[ulen++] = '\r';
+		ucode[ulen++] = '\n';
+	} else {
+		ucode[ulen++] = ch;
+	}
+	ucode[ulen] = '\0';
+
 	out = priv->std_err ? priv->std_err : priv->con_out;
-	ret = out->output_string(out, ucode);
-	if (ret)
-		return -EIO;
+	if (out->output_string(out, ucode) && priv->std_err)
+		priv->con_out->output_string(priv->con_out, ucode);
 #endif
 
 	return 0;
@@ -129,12 +149,36 @@ static inline void _debug_uart_init(void)
 
 static inline void _debug_uart_putc(int ch)
 {
+	static efi_guid_t serial_guid = EFI_SERIAL_IO_PROTOCOL_GUID;
+	static struct efi_serial_io_protocol *serial_io;
+	static bool serial_io_probed;
 	struct efi_system_table *sys_table = efi_get_sys_table();
 	struct efi_simple_text_output_protocol *out;
-	uint16_t ucode[2];
+	uint16_t ucode[3];
+	int ulen = 0;
 
-	ucode[0] = ch;
-	ucode[1] = '\0';
+	if (!serial_io_probed) {
+		sys_table->boottime->locate_protocol(&serial_guid, NULL,
+						     (void **)&serial_io);
+		serial_io_probed = true;
+	}
+
+	if (serial_io) {
+		char buf = ch;
+		efi_uintn_t sz = 1;
+
+		if (!serial_io->write(serial_io, &sz, &buf))
+			return;
+	}
+
+	if (ch == '\n') {
+		ucode[ulen++] = '\r';
+		ucode[ulen++] = '\n';
+	} else {
+		ucode[ulen++] = ch;
+	}
+	ucode[ulen] = '\0';
+
 	out = sys_table->std_err ? sys_table->std_err : sys_table->con_out;
 	out->output_string(out, ucode);
 }
@@ -145,10 +189,15 @@ static int serial_efi_probe(struct udevice *dev)
 {
 	struct efi_system_table *table = efi_get_sys_table();
 	struct serial_efi_priv *priv = dev_get_priv(dev);
+	static efi_guid_t serial_guid = EFI_SERIAL_IO_PROTOCOL_GUID;
 
 	priv->con_in = table->con_in;
 	priv->con_out = table->con_out;
 	priv->std_err = table->std_err;
+
+	/* Locate the direct serial I/O protocol; NULL if not available */
+	table->boottime->locate_protocol(&serial_guid, NULL,
+					 (void **)&priv->serial_io);
 
 	return 0;
 }

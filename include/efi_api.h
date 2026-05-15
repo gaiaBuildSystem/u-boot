@@ -2445,4 +2445,39 @@ struct efi_disk {
 					  void *buffer);
 };
 
+#define EFI_SERIAL_IO_PROTOCOL_GUID \
+	EFI_GUID(0xbb25cf6f, 0xf1d4, 0x11d2, \
+		 0x9a, 0x0c, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0xfd)
+
+#define EFI_SERIAL_IO_PROTOCOL_REVISION		0x00010000
+
+struct efi_serial_io_mode {
+	u32 control_mask;
+	u32 timeout;
+	u64 baud_rate;
+	u32 receive_fifo_depth;
+	u32 data_bits;
+	u32 parity;
+	u32 stop_bits;
+};
+
+struct efi_serial_io_protocol {
+	u32 revision;
+	efi_status_t (EFIAPI *reset)(struct efi_serial_io_protocol *this);
+	efi_status_t (EFIAPI *set_attributes)(struct efi_serial_io_protocol *this,
+					      u64 baud_rate,
+					      u32 receive_fifo_depth,
+					      u32 timeout, u32 parity,
+					      u8 data_bits, u32 stop_bits);
+	efi_status_t (EFIAPI *set_control)(struct efi_serial_io_protocol *this,
+					   u32 control);
+	efi_status_t (EFIAPI *get_control)(struct efi_serial_io_protocol *this,
+					   u32 *control);
+	efi_status_t (EFIAPI *write)(struct efi_serial_io_protocol *this,
+				     efi_uintn_t *buffer_size, void *buffer);
+	efi_status_t (EFIAPI *read)(struct efi_serial_io_protocol *this,
+				    efi_uintn_t *buffer_size, void *buffer);
+	struct efi_serial_io_mode *mode;
+};
+
 #endif
