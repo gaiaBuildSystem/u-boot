@@ -40,13 +40,13 @@ rcsid[] = "$Id: i_x.c,v 1.6 1997/02/03 22:45:10 b1 Exp $";
 #include "doomgeneric.h"
 
 #include <stdbool.h>
-#include <stdlib.h>
+#include <dg_stdlib.h>
 
-#include <fcntl.h>
+#include <dg_fcntl.h>
 
 #include <stdarg.h>
 
-#include <sys/types.h>
+#include <dg_sys_types.h>
 
 //#define CMAP256
 

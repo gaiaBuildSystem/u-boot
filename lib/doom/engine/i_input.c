@@ -14,12 +14,12 @@
 //
 
 
-#include <stdlib.h>
-#include <ctype.h>
-#include <math.h>
-#include <string.h>
-#include <fcntl.h>
-#include <stdio.h>
+#include <dg_stdlib.h>
+#include <dg_ctype.h>
+#include <dg_math.h>
+#include <dg_string.h>
+#include <dg_fcntl.h>
+#include <dg_stdio.h>
 
 #include "config.h"
 #include "deh_str.h"

@@ -18,10 +18,10 @@
 //
 
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+#include <dg_stdio.h>
+#include <dg_stdlib.h>
+#include <dg_string.h>
+#include <dg_ctype.h>
 #include <errno.h>
 
 #ifdef _WIN32
@@ -32,8 +32,8 @@
 #include <direct.h>
 #endif
 #else
-#include <sys/stat.h>
-#include <sys/types.h>
+#include <dg_sys_stat.h>
+#include <dg_sys_types.h>
 #endif
 
 #include "doomtype.h"

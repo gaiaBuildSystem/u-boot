@@ -19,7 +19,7 @@
 
 
 
-#include <math.h>
+#include <dg_math.h>
 
 #include "z_zone.h"
 

@@ -18,7 +18,7 @@
 #ifndef NET_DEFS_H
 #define NET_DEFS_H 
 
-#include <stdio.h>
+#include <dg_stdio.h>
 
 #include "doomtype.h"
 #include "d_ticcmd.h"

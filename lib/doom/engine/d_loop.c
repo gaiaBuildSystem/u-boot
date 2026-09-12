@@ -16,8 +16,8 @@
 //     Main loop code.
 //
 
-#include <stdlib.h>
-#include <string.h>
+#include <dg_stdlib.h>
+#include <dg_string.h>
 
 #include "doomfeatures.h"
 

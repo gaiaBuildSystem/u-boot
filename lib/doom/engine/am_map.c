@@ -17,7 +17,7 @@
 //
 
 
-#include <stdio.h>
+#include <dg_stdio.h>
 
 #include "deh_main.h"
 

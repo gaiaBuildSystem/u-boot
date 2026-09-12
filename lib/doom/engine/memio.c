@@ -16,9 +16,9 @@
 // memory.
 //
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <dg_stdio.h>
+#include <dg_stdlib.h>
+#include <dg_string.h>
 
 #include "memio.h"
 

@@ -17,9 +17,9 @@
 
 
 
-#include <string.h>
-#include <stdlib.h>
-#include <math.h>
+#include <dg_string.h>
+#include <dg_stdlib.h>
+#include <dg_math.h>
 
 #include "doomdef.h" 
 #include "doomkeys.h"

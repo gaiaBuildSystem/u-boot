@@ -18,8 +18,8 @@
 //
 
 
-#include <stdlib.h>
-#include <ctype.h>
+#include <dg_stdlib.h>
+#include <dg_ctype.h>
 
 
 #include "doomdef.h"

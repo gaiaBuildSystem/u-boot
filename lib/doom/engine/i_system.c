@@ -17,9 +17,9 @@
 
 
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <dg_stdlib.h>
+#include <dg_stdio.h>
+#include <dg_string.h>
 
 #include <stdarg.h>
 
@@ -27,7 +27,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #else
-#include <unistd.h>
+#include <dg_unistd.h>
 #endif
 
 #ifdef ORIGCODE

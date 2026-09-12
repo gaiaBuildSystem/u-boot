@@ -18,7 +18,7 @@
 
 
 
-#include <string.h>
+#include <dg_string.h>
 
 #include "doomtype.h"
 #include "m_cheat.h"

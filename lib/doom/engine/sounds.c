@@ -18,7 +18,7 @@
 //
 
 
-#include <stdlib.h>
+#include <dg_stdlib.h>
 
 
 #include "doomtype.h"

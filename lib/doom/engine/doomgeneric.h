@@ -1,8 +1,8 @@
 #ifndef DOOM_GENERIC
 #define DOOM_GENERIC
 
-#include <stdlib.h>
-#include <stdint.h>
+#include <dg_stdlib.h>
+#include <dg_stdint.h>
 
 #ifndef DOOMGENERIC_RESX
 #define DOOMGENERIC_RESX 640

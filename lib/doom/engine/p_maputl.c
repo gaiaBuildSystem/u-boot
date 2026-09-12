@@ -22,7 +22,7 @@
 
 
 
-#include <stdlib.h>
+#include <dg_stdlib.h>
 
 
 #include "m_bbox.h"

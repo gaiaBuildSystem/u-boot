@@ -24,7 +24,7 @@
 #ifndef __Z_ZONE__
 #define __Z_ZONE__
 
-#include <stdio.h>
+#include <dg_stdio.h>
 
 //
 // ZONE MEMORY

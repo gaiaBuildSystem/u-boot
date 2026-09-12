@@ -19,7 +19,7 @@
 // Events can be discarded if no responder claims them
 //
 
-#include <stdlib.h>
+#include <dg_stdlib.h>
 #include "d_event.h"
 
 #define MAXEVENTS 64

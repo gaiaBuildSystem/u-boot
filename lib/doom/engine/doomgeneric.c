@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <dg_stdio.h>
 
 #include "m_argv.h"
 
