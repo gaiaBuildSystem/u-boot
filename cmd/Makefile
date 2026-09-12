@@ -36,6 +36,7 @@ obj-$(CONFIG_CMD_BLKMAP) += blkmap.o
 obj-$(CONFIG_CMD_BLOBLIST) += bloblist.o
 obj-$(CONFIG_CMD_BLOCK_CACHE) += blkcache.o
 obj-$(CONFIG_CMD_BMP) += bmp.o
+obj-$(CONFIG_CMD_DOOM) += doom.o
 obj-$(CONFIG_CMD_BOOTCOUNT) += bootcount.o
 obj-$(CONFIG_CMD_BOOTEFI) += bootefi.o
 obj-$(CONFIG_CMD_BOOTMENU) += bootmenu.o
@@ -312,3 +313,6 @@ $(obj)/license_data_size.h: $(srctree)/Licenses/gpl-2.0.txt FORCE
 	$(call filechk,data_size)
 
 CFLAGS_ethsw.o := -Wno-enum-conversion
+
+# the doom command talks to the engine's backing store
+CFLAGS_doom.o := -I$(srctree)/lib/doom/compat

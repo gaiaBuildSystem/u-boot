@@ -2457,6 +2457,20 @@ config CMD_2048
 	  This needs ANSI support on your terminal to work. It is not fully
 	  functional on a video device.
 
+config CMD_DOOM
+	bool "Play DOOM"
+	depends on VIDEO && HAVE_SETJMP
+	help
+	  Run the classic 1993 first-person shooter DOOM, based on the
+	  doomgeneric port of the id Software engine. It renders into the
+	  DM video framebuffer.
+
+	  Sandbox reads the keyboard through SDL and loads the shareware WAD
+	  (doom1.wad) from the host filesystem, so run U-Boot from a
+	  directory containing it or pass an explicit path. On other boards
+	  the keys come from the console and the WAD is loaded into memory
+	  first, with its address and size passed to the 'doom' command.
+
 config CMD_BMP
 	bool "Enable 'bmp' command"
 	depends on VIDEO
