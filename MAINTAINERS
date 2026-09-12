@@ -1001,6 +1001,7 @@ DOOM
 M:	Simon Glass <sjg@chromium.org>
 S:	Maintained
 F:	cmd/doom.c
+F:	doc/usage/cmd/doom.rst
 F:	lib/doom/
 
 DFU
