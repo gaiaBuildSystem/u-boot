@@ -1305,7 +1305,6 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	if (IS_ENABLED(CONFIG_FDT_RNG_SEED))
 		ut_assert_nextlinen("\trng-seed = ");
 	if (!uclass_get_device(UCLASS_RNG, 0, &dev) &&
-	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		ut_assert_nextlinen("\tkaslr-seed = ");
 	ut_assert_nextline("};");
@@ -1342,7 +1341,6 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	if (IS_ENABLED(CONFIG_FDT_RNG_SEED))
 		ut_assert_nextlinen("\trng-seed = ");
 	if (!uclass_get_device(UCLASS_RNG, 0, &dev) &&
-	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		ut_assert_nextlinen("\tkaslr-seed = ");
 	ut_assert_nextline("};");

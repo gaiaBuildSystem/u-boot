@@ -413,12 +413,13 @@ int fdt_chosen(void *fdt)
 	if (nodeoffset < 0)
 		return nodeoffset;
 
-	/* if DM_RNG enabled automatically inject kaslr-seed node unless:
-	 * CONFIG_MEASURED_BOOT enabled: as dt modifications break measured boot
-	 * CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT enabled: as that implementation does not use dm yet
+	/*
+	 * If DM_RNG is enabled, automatically inject the kaslr-seed node,
+	 * unless CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT is enabled, as that
+	 * implementation does not use driver model yet. Measured boot is not
+	 * affected, since the devicetree is measured before this fixup runs
 	 */
 	if (IS_ENABLED(CONFIG_DM_RNG) &&
-	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		fdt_kaslrseed(fdt, false);
 
