@@ -7,6 +7,7 @@
 #include <bmp_layout.h>
 #include <bzlib.h>
 #include <dm.h>
+#include <fdt_simplefb.h>
 #include <gzip.h>
 #include <log.h>
 #include <malloc.h>
@@ -19,6 +20,7 @@
 #include <dm/test.h>
 #include <dm/uclass-internal.h>
 #include <linux/delay.h>
+#include <linux/libfdt.h>
 #include <test/lib.h>
 #include <test/test.h>
 #include <test/ut.h>
@@ -1740,3 +1742,81 @@ static int dm_test_video_context_indep_tt(struct unit_test_state *uts)
 	return 0;
 }
 DM_TEST(dm_test_video_context_indep_tt, UTF_SCAN_PDATA | UTF_SCAN_FDT);
+
+/* Read a 32-bit property from a devicetree blob, returning 0 if missing */
+static u32 fdt_prop_u32(const void *fdt, int node, const char *name)
+{
+	const fdt32_t *val = fdt_getprop(fdt, node, name, NULL);
+
+	return val ? fdt32_to_cpu(*val) : 0;
+}
+
+/* Test passing the framebuffer to the OS as a simple-framebuffer node */
+static int dm_test_video_simplefb_handoff(struct unit_test_state *uts)
+{
+	struct video_uc_plat *plat;
+	struct video_priv *priv;
+	struct udevice *dev;
+	const fdt32_t *reg;
+	char fdt[4096];
+	int chosen, node, rsv, len;
+
+	if (!IS_ENABLED(CONFIG_FDT_SIMPLEFB_HANDOFF))
+		return -EAGAIN;
+
+	ut_assertok(uclass_first_device_err(UCLASS_VIDEO, &dev));
+	priv = dev_get_uclass_priv(dev);
+	plat = dev_get_uclass_plat(dev);
+
+	/* an arm64-style tree with 64-bit addresses and no /chosen node */
+	ut_assertok(fdt_create_empty_tree(fdt, sizeof(fdt)));
+	ut_assertok(fdt_setprop_u32(fdt, 0, "#address-cells", 2));
+	ut_assertok(fdt_setprop_u32(fdt, 0, "#size-cells", 2));
+
+	ut_assertok(fdt_simplefb_handoff(fdt));
+
+	/* the node goes under /chosen, which gets the root's cell sizes */
+	chosen = fdt_path_offset(fdt, "/chosen");
+	ut_assert(chosen >= 0);
+	ut_asserteq(2, fdt_prop_u32(fdt, chosen, "#address-cells"));
+	ut_asserteq(2, fdt_prop_u32(fdt, chosen, "#size-cells"));
+	ut_assertnonnull(fdt_getprop(fdt, chosen, "ranges", NULL));
+
+	node = fdt_node_offset_by_compatible(fdt, -1, "simple-framebuffer");
+	ut_assert(node >= 0);
+	ut_asserteq(chosen, fdt_parent_offset(fdt, node));
+	ut_asserteq_str("okay", fdt_getprop(fdt, node, "status", NULL));
+	ut_asserteq(priv->xsize, fdt_prop_u32(fdt, node, "width"));
+	ut_asserteq(priv->ysize, fdt_prop_u32(fdt, node, "height"));
+	ut_asserteq(priv->xsize * VNBYTES(priv->bpix),
+		    fdt_prop_u32(fdt, node, "stride"));
+	ut_asserteq_str("r5g6b5", fdt_getprop(fdt, node, "format", NULL));
+
+	reg = fdt_getprop(fdt, node, "reg", &len);
+	ut_assertnonnull(reg);
+	ut_asserteq(4 * sizeof(*reg), len);
+	ut_asserteq_64(plat->base, ((u64)fdt32_to_cpu(reg[0]) << 32) |
+		       fdt32_to_cpu(reg[1]));
+	ut_asserteq_64(priv->ysize * priv->xsize * VNBYTES(priv->bpix),
+		       ((u64)fdt32_to_cpu(reg[2]) << 32) | fdt32_to_cpu(reg[3]));
+
+	/* and the framebuffer memory is reserved */
+	rsv = fdt_path_offset(fdt, "/reserved-memory");
+	ut_assert(rsv >= 0);
+	node = fdt_first_subnode(fdt, rsv);
+	ut_assert(node >= 0);
+	ut_assert(!strncmp("framebuffer@", fdt_get_name(fdt, node, NULL),
+			   strlen("framebuffer@")));
+	ut_assertnonnull(fdt_getprop(fdt, node, "no-map", NULL));
+
+	/* running it again fills in the existing node rather than adding one */
+	ut_assertok(fdt_simplefb_handoff(fdt));
+	node = fdt_node_offset_by_compatible(fdt, -1, "simple-framebuffer");
+	ut_assert(node >= 0);
+	ut_asserteq(-FDT_ERR_NOTFOUND,
+		    fdt_node_offset_by_compatible(fdt, node,
+						  "simple-framebuffer"));
+
+	return 0;
+}
+DM_TEST(dm_test_video_simplefb_handoff, UTF_SCAN_PDATA | UTF_SCAN_FDT);
