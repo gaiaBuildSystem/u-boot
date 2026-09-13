@@ -11,6 +11,23 @@
 #include <linux/errno.h>
 #include <linux/zstd.h>
 
+int zstd_uncompressed_size(const void *src, size_t len, ulong *sizep)
+{
+	zstd_frame_header hdr;
+	size_t ret;
+
+	ret = zstd_get_frame_header(&hdr, src, len);
+	if (ret)
+		return -EINVAL;
+	if (hdr.frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN)
+		return -EOPNOTSUPP;
+	if ((ulong)hdr.frameContentSize != hdr.frameContentSize)
+		return -E2BIG;
+	*sizep = hdr.frameContentSize;
+
+	return 0;
+}
+
 int zstd_decompress(struct abuf *in, struct abuf *out)
 {
 	zstd_dctx *ctx;

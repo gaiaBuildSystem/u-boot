@@ -30,11 +30,30 @@
 #include "LzmaTools.h"
 #include "LzmaDec.h"
 
+#include <asm/unaligned.h>
+#include <linux/errno.h>
 #include <linux/string.h>
 #include <malloc.h>
 
 static void *SzAlloc(ISzAllocPtr p, size_t size) { return malloc(size); }
 static void SzFree(ISzAllocPtr p, void *address) { free(address); }
+
+int lzma_uncompressed_size(const unsigned char *inStream, SizeT length,
+			   ulong *sizep)
+{
+	u64 size;
+
+	if (length < LZMA_DATA_OFFSET)
+		return -EINVAL;
+	size = get_unaligned_le64(inStream + LZMA_SIZE_OFFSET);
+	if (size == ~0ULL)
+		return -EOPNOTSUPP;
+	if ((ulong)size != size)
+		return -E2BIG;
+	*sizep = size;
+
+	return 0;
+}
 
 int lzmaBuffToBuffDecompress(unsigned char *outStream, SizeT *uncompressedSize,
 			     const unsigned char *inStream, SizeT length)

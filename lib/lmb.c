@@ -774,6 +774,83 @@ phys_addr_t lmb_alloc_base(phys_size_t size, ulong align, phys_addr_t max_addr,
 	return _lmb_alloc_base(size, align, max_addr, flags);
 }
 
+/**
+ * lmb_walk_slots() - Count the aligned places where a region would fit
+ *
+ * Walks the free memory (the available regions less the used regions) and
+ * counts every @align-aligned base at which a region of @size bytes would
+ * fit. If @index is less than that count, the base of slot @index is
+ * returned in @basep.
+ *
+ * @size: Size of the region
+ * @align: Alignment required for the base (must be a power of two)
+ * @index: Slot to look for, or ULONG_MAX to just count
+ * @basep: Returns the base of slot @index, if found
+ * Return: total number of slots
+ */
+static ulong lmb_walk_slots(phys_size_t size, ulong align, ulong index,
+			    phys_addr_t *basep)
+{
+	struct lmb_region *used = lmb.used_mem.data;
+	struct lmb_region *mem = lmb.available_mem.data;
+	ulong count = 0;
+	int i, j;
+
+	for (i = 0; i < lmb.available_mem.count; i++) {
+		phys_addr_t cur = mem[i].base;
+		phys_addr_t end = mem[i].base + mem[i].size;
+
+		/* the used regions are sorted, so walk them alongside memory */
+		for (j = 0; j <= lmb.used_mem.count && cur < end; j++) {
+			phys_addr_t free_end, first, last;
+			ulong n;
+
+			if (j < lmb.used_mem.count) {
+				if (used[j].base + used[j].size <= cur)
+					continue;
+				free_end = min(used[j].base, end);
+			} else {
+				free_end = end;
+			}
+
+			first = ALIGN(cur, align);
+			if (free_end > first && free_end - first >= size) {
+				last = ALIGN_DOWN(free_end - size, align);
+				n = (last - first) / align + 1;
+				if (index >= count && index < count + n)
+					*basep = first + (index - count) * align;
+				count += n;
+			}
+			if (j < lmb.used_mem.count)
+				cur = max(cur, used[j].base + used[j].size);
+		}
+	}
+
+	return count;
+}
+
+int lmb_alloc_random(phys_size_t size, ulong align, u32 flags, ulong rnd,
+		     phys_addr_t *basep)
+{
+	phys_addr_t base = 0;
+	ulong count;
+	long ret;
+
+	count = lmb_walk_slots(size, align, ULONG_MAX, NULL);
+	if (!count) {
+		log_debug("%s: No space for 0x%lx bytes\n", __func__,
+			  (ulong)size);
+		return -ENOSPC;
+	}
+	lmb_walk_slots(size, align, rnd % count, &base);
+	ret = lmb_reserve(base, size, flags);
+	if (ret)
+		return ret;
+	*basep = base;
+
+	return 0;
+}
+
 int lmb_alloc_addr(phys_addr_t base, phys_size_t size, u32 flags)
 {
 	long rgn;
@@ -783,10 +860,12 @@ int lmb_alloc_addr(phys_addr_t base, phys_size_t size, u32 flags)
 	rgn = lmb_overlaps_region(&lmb.available_mem, base, size);
 	if (rgn >= 0) {
 		/*
-		 * Check if the requested end address is in the same memory
-		 * region we found.
+		 * Check that the requested region lies entirely within the
+		 * memory region we found: it must not start before it, nor
+		 * end after it
 		 */
-		if (lmb_addrs_overlap(lmb_memory[rgn].base,
+		if (base >= lmb_memory[rgn].base &&
+		    lmb_addrs_overlap(lmb_memory[rgn].base,
 				      lmb_memory[rgn].size,
 				      base + size - 1, 1))
 			/* ok, reserve the memory */

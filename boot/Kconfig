@@ -51,6 +51,25 @@ config SPL_LIB_BOOTM
 config SPL_LIB_BOOTZ
 	bool
 
+config BOOTI_RANDOMIZE_BASE
+	bool "Load the Linux Image at a random physical address"
+	depends on LIB_BOOTI && ARM64 && LMB && DM_RNG
+	help
+	  Place the kernel at a random 2MB-aligned address in free memory on
+	  each boot, chosen using the RNG uclass, instead of always at the
+	  same one. This is the physical part of KASLR, which the kernel's
+	  EFI stub does when booting through EFI but which the kernel cannot
+	  do for itself when booted directly. It makes attacks which need to
+	  know where the kernel is in physical memory (e.g. via DMA) harder.
+
+	  The virtual part of KASLR is handled by the kernel using the
+	  kaslr-seed which U-Boot adds to the devicetree, so this option is
+	  not needed for that.
+
+	  As with the EFI stub, randomisation is skipped if 'nokaslr' is in
+	  the kernel command line. Kernels older than v4.6 ask to be placed
+	  at the start of RAM, which is honoured instead.
+
 config BUTTON_CMD
 	bool "Support for running a command if a button is held during boot"
 	depends on CMDLINE

@@ -441,6 +441,44 @@ int image_decomp_type(const unsigned char *buf, ulong len)
 	return cmagic->comp_id;
 }
 
+int image_decomp_size(int comp, const void *buf, ulong len, ulong *sizep)
+{
+	int ret = -ENOSYS;
+
+	switch (comp) {
+	case IH_COMP_NONE:
+		*sizep = len;
+		ret = 0;
+		break;
+	case IH_COMP_GZIP:
+		if (!tools_build() && CONFIG_IS_ENABLED(GZIP))
+			ret = gzip_uncompressed_size(buf, len, sizep);
+		break;
+	case IH_COMP_BZIP2:
+		if (!tools_build() && CONFIG_IS_ENABLED(BZIP2))
+			ret = -EOPNOTSUPP;
+		break;
+	case IH_COMP_LZMA:
+		if (!tools_build() && CONFIG_IS_ENABLED(LZMA))
+			ret = lzma_uncompressed_size(buf, len, sizep);
+		break;
+	case IH_COMP_LZO:
+		if (!tools_build() && CONFIG_IS_ENABLED(LZO))
+			ret = -EOPNOTSUPP;
+		break;
+	case IH_COMP_LZ4:
+		if (!tools_build() && CONFIG_IS_ENABLED(LZ4))
+			ret = lz4_uncompressed_size(buf, len, sizep);
+		break;
+	case IH_COMP_ZSTD:
+		if (!tools_build() && CONFIG_IS_ENABLED(ZSTD))
+			ret = zstd_uncompressed_size(buf, len, sizep);
+		break;
+	}
+
+	return ret;
+}
+
 int image_decomp(int comp, ulong load, ulong image_start, int type,
 		 void *load_buf, void *image_buf, ulong image_len,
 		 uint unc_len, ulong *load_end)

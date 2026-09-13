@@ -39,6 +39,16 @@ bool booti_is_valid(const void *img)
 	return lhdr->magic == LINUX_RISCV_IMAGE_MAGIC;
 }
 
+int booti_alloc(ulong size, ulong *addrp)
+{
+	return -ENOSYS;
+}
+
+int booti_check(ulong image, ulong size, ulong *relocated_addr, ulong *sizep)
+{
+	return -ENOSYS;
+}
+
 int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 		bool force_reloc)
 {

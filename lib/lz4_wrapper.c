@@ -15,6 +15,33 @@
 
 #define LZ4F_BLOCKUNCOMPRESSED_FLAG 0x80000000U
 
+/* Magic, FLG and BD bytes; the optional content size follows, then the HC */
+#define LZ4F_HDR_SIZE	(sizeof(u32) + 2 * sizeof(u8))
+
+int lz4_uncompressed_size(const void *src, size_t srcn, ulong *sizep)
+{
+	u8 flags, version, has_content_size;
+	u64 size;
+
+	if (srcn < LZ4F_HDR_SIZE + sizeof(u64) + sizeof(u8))
+		return -EINVAL;
+	if (get_unaligned_le32(src) != LZ4F_MAGIC)
+		return -EPROTONOSUPPORT;
+	flags = *((const u8 *)src + sizeof(u32));
+	version = (flags >> 6) & 0x3;
+	has_content_size = (flags >> 3) & 0x1;
+	if (version != 1)
+		return -EPROTONOSUPPORT;
+	if (!has_content_size)
+		return -EOPNOTSUPP;
+	size = get_unaligned_le64(src + LZ4F_HDR_SIZE);
+	if ((ulong)size != size)
+		return -E2BIG;
+	*sizep = size;
+
+	return 0;
+}
+
 __rcode int ulz4fn(const void *src, size_t srcn, void *dst, size_t *dstn)
 {
 	const void *end = dst + *dstn;

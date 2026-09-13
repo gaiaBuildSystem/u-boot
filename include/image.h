@@ -1159,6 +1159,26 @@ static inline int image_check_target_arch(const struct legacy_img_hdr *hdr)
 int image_decomp_type(const unsigned char *buf, ulong len);
 
 /**
+ * image_decomp_size() - Find the uncompressed size of an image
+ *
+ * This looks at the compressed data without decompressing it, so that the
+ * space needed can be known before decompression starts, e.g. to decompress
+ * straight to the address the image will run from. Not all formats record
+ * the size, and encoders which stream their input often omit it even when the
+ * format allows it, so callers must cope with this failing.
+ *
+ * @comp:	Compression algorithm that is used (IH_COMP_...)
+ * @buf:	Compressed data
+ * @len:	Number of bytes at @buf; for gzip this must be the exact length
+ *		of the stream, since the size is at the end
+ * @sizep:	Returns the uncompressed size
+ * Return: 0 if OK, -EOPNOTSUPP if the format or this particular data does
+ * not record the size, -ENOSYS if the compression type is not supported,
+ * other -ve value if the data is not valid
+ */
+int image_decomp_size(int comp, const void *buf, ulong len, ulong *sizep);
+
+/**
  * image_decomp() - decompress an image
  *
  * @comp:	Compression algorithm that is used (IH_COMP_...)
@@ -1220,6 +1240,42 @@ int bootz_setup(ulong image, ulong *start, ulong *end);
  */
 int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 		bool force_reloc);
+
+/**
+ * booti_alloc() - Reserve space for an Image which is not yet in memory
+ *
+ * This is used when the size of an Image is known but the Image itself is
+ * not yet available, e.g. because it is still compressed, so that it can be
+ * decompressed straight to the address it will run from. A 2MB-aligned
+ * region is reserved in lmb, which suits a kernel whose text_offset is zero
+ * (all since Linux v5.8), with some extra space for the .bss which follows
+ * the Image in memory. Call booti_check() once the Image is in place.
+ *
+ * @size: Size of the Image file, in bytes
+ * @addrp: Returns the address at which to place the Image
+ * Return: 0 if OK, -ENOSPC if there is not enough lmb space, -ENOSYS if not
+ * supported
+ */
+int booti_alloc(ulong size, ulong *addrp);
+
+/**
+ * booti_check() - Check an Image placed at the address from booti_alloc()
+ *
+ * This checks the Image header now that the Image is in memory and replaces
+ * the reservation made by booti_alloc() with one covering the whole Image
+ * (its image_size field, which includes .bss). If the Image cannot stay where
+ * it is, e.g. because its text_offset is not zero or its .bss does not fit,
+ * it is placed as booti_setup() would place it and the caller must move it.
+ *
+ * @image: Address of the Image, from booti_alloc()
+ * @size: Size passed to booti_alloc()
+ * @relocated_addr: Returns the address the Image should run from; if this
+ *	differs from @image the caller must move it there
+ * @sizep: Returns the size of the Image in memory
+ * Return: 0 if OK, -EPERM if the header is not recognised, -ENOSPC if there
+ * is not enough lmb space, -ENOSYS if not supported
+ */
+int booti_check(ulong image, ulong size, ulong *relocated_addr, ulong *sizep);
 
 /*******************************************************************/
 /* New uImage format specific code (prefixed with fit_) */

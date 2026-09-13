@@ -312,6 +312,37 @@ static int lib_test_lmb_big(struct unit_test_state *uts)
 }
 LIB_TEST(lib_test_lmb_big, 0);
 
+/* Check that lmb_alloc_addr() rejects a region which is not within memory */
+static int lib_test_lmb_alloc_addr_outside(struct unit_test_state *uts)
+{
+	const phys_addr_t ram = 0x40000000;
+	const phys_size_t ram_size = 0x20000000;
+	struct alist *mem_lst, *used_lst;
+	struct lmb store;
+
+	ut_assertok(setup_lmb_test(uts, &store, &mem_lst, &used_lst));
+	ut_asserteq(0, lmb_add(ram, ram_size));
+
+	/* starting before memory but overlapping it */
+	ut_asserteq(-EINVAL, lmb_alloc_addr(ram - 0x100000, 0x200000, LMB_NONE));
+
+	/* ending after memory */
+	ut_asserteq(-EINVAL, lmb_alloc_addr(ram + ram_size - 0x100000, 0x200000,
+					    LMB_NONE));
+
+	/* entirely outside */
+	ut_asserteq(-EFAULT, lmb_alloc_addr(ram - 0x200000, 0x100000, LMB_NONE));
+
+	/* within memory, at the very start */
+	ut_asserteq(0, lmb_alloc_addr(ram, 0x200000, LMB_NONE));
+	ut_asserteq(1, used_lst->count);
+
+	lmb_pop(&store);
+
+	return 0;
+}
+LIB_TEST(lib_test_lmb_alloc_addr_outside, 0);
+
 /* Simulate 512 MiB RAM, allocate a block without previous reservation */
 static int test_noreserved(struct unit_test_state *uts, const phys_addr_t ram,
 			   const phys_addr_t alloc_size, const ulong align)
@@ -749,9 +780,9 @@ static int test_alloc_addr(struct unit_test_state *uts, const phys_addr_t ram)
 		ret = lmb_alloc_addr(ram - 1, 1, LMB_NONE);
 		ut_asserteq(ret, -EFAULT);
 		ret = lmb_alloc_addr(ram - 1, 2, LMB_NOMAP);
-		ut_asserteq(ret, -EEXIST);
+		ut_asserteq(ret, -EINVAL);
 		ret = lmb_alloc_addr(ram - 1, 2, LMB_NOOVERWRITE);
-		ut_asserteq(ret, -EEXIST);
+		ut_asserteq(ret, -EINVAL);
 	}
 
 	lmb_pop(&store);
@@ -937,3 +968,70 @@ static int lib_test_lmb_flags(struct unit_test_state *uts)
 	return 0;
 }
 LIB_TEST(lib_test_lmb_flags, 0);
+
+/* Check that lmb_alloc_random() can land in every aligned slot */
+static int lib_test_lmb_random(struct unit_test_state *uts)
+{
+	const phys_addr_t ram = 0x40000000;
+	const phys_size_t ram_size = 0x20000000;
+	const phys_size_t size = 0x400000;
+	const ulong align = 0x200000;
+	struct alist *mem_lst, *used_lst;
+	struct lmb store;
+	phys_addr_t a;
+
+	ut_assertok(setup_lmb_test(uts, &store, &mem_lst, &used_lst));
+	ut_asserteq(0, lmb_add(ram, ram_size));
+
+	/*
+	 * Reserve 1MB in the middle, leaving 256MB below it and just under
+	 * 256MB above. A 4MB region at 2MB alignment has 127 slots below the
+	 * reservation and 126 above it, as the first aligned base above is
+	 * 2MB up
+	 */
+	ut_asserteq(0, lmb_reserve(ram + 0x10000000, 0x100000, LMB_NONE));
+
+	/* first and last slot below the reservation */
+	ut_assertok(lmb_alloc_random(size, align, LMB_NONE, 0, &a));
+	ut_asserteq(ram, a);
+	ut_asserteq(0, lmb_free(a, size));
+
+	ut_assertok(lmb_alloc_random(size, align, LMB_NONE, 126, &a));
+	ut_asserteq(ram + 0x10000000 - size, a);
+	ut_asserteq(0, lmb_free(a, size));
+
+	/* first and last slot above it */
+	ut_assertok(lmb_alloc_random(size, align, LMB_NONE, 127, &a));
+	ut_asserteq(ram + 0x10200000, a);
+	ut_asserteq(0, lmb_free(a, size));
+
+	ut_assertok(lmb_alloc_random(size, align, LMB_NONE, 252, &a));
+	ut_asserteq(ram + ram_size - size, a);
+	ut_asserteq(0, lmb_free(a, size));
+
+	/* the random value wraps around */
+	ut_assertok(lmb_alloc_random(size, align, LMB_NONE, 253, &a));
+	ut_asserteq(ram, a);
+
+	/*
+	 * that allocation is now in the way, so slot 0 has moved up; the two
+	 * are adjacent so they coalesce into one used region
+	 */
+	ut_assertok(lmb_alloc_random(size, align, LMB_NONE, 0, &a));
+	ut_asserteq(ram + size, a);
+	ut_asserteq(2, used_lst->count);
+
+	/* too big to fit in either gap */
+	ut_asserteq(-ENOSPC, lmb_alloc_random(0x10000000, align, LMB_NONE, 0,
+					      &a));
+
+	/* but exactly filling the gap above the two allocations is fine */
+	ut_assertok(lmb_alloc_random(0x10000000 - 2 * size, align, LMB_NONE, 0,
+				     &a));
+	ut_asserteq(ram + 2 * size, a);
+
+	lmb_pop(&store);
+
+	return 0;
+}
+LIB_TEST(lib_test_lmb_random, 0);

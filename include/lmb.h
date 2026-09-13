@@ -152,6 +152,26 @@ phys_addr_t lmb_alloc_base(phys_size_t size, ulong align, phys_addr_t max_addr,
 			   uint flags);
 
 /**
+ * lmb_alloc_random() - Allocate a region at a randomly chosen address
+ *
+ * @size: Size of the region requested
+ * @align: Alignment of the base address (must be a power of two)
+ * @flags: Memory region attributes to be set
+ * @rnd: Random value used to choose the position
+ * @basep: Returns the base address of the region
+ *
+ * Every @align-aligned base at which the region would fit in free memory is
+ * a candidate and one is selected using @rnd, so with a uniformly random
+ * @rnd the region is equally likely to land at any of them. This is used to
+ * randomise the physical placement of the kernel.
+ *
+ * Return: 0 on success, -ENOSPC if the region does not fit anywhere, other
+ * -ve value if it could not be reserved
+ */
+int lmb_alloc_random(phys_size_t size, ulong align, u32 flags, ulong rnd,
+		     phys_addr_t *basep);
+
+/**
  * lmb_alloc_addr() - Allocate specified memory address with specified attributes
  *
  * @base: Base Address requested

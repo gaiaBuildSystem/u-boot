@@ -18,6 +18,8 @@
 #include <watchdog.h>
 #include <u-boot/zlib.h>
 #include <asm/sections.h>
+#include <asm/unaligned.h>
+#include <linux/errno.h>
 
 #define HEADER0			'\x1f'
 #define HEADER1			'\x8b'
@@ -82,6 +84,22 @@ __rcode int gunzip(void *dst, int dstlen, unsigned char *src, unsigned long *len
 		return offset;
 
 	return zunzip(dst, dstlen, src, lenp, 1, offset);
+}
+
+int gzip_uncompressed_size(const void *src, ulong len, ulong *sizep)
+{
+	int offset;
+
+	offset = gzip_parse_header(src, len);
+	if (offset < 0)
+		return -EINVAL;
+
+	/* The header is followed by the deflate stream, CRC32 and ISIZE */
+	if (len < offset + 8)
+		return -EINVAL;
+	*sizep = get_unaligned_le32(src + len - 4);
+
+	return 0;
 }
 
 #ifdef CONFIG_CMD_UNZIP

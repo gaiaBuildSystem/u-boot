@@ -121,6 +121,29 @@ static const char lz4_compressed[] =
 	"\x9d\x12\x8c\x9d";
 static const unsigned long lz4_compressed_size = sizeof(lz4_compressed) - 1;
 
+/* lz4 -z --content-size /tmp/plain.txt > /tmp/plain-cs.lz4 */
+static const char lz4_cs_compressed[] =
+	"\x04\x22\x4d\x18\x6c\x40\x5e\x01\x00\x00\x00\x00\x00\x00\x0c\x01"
+	"\x01\x00\x00\xff\x19\x49\x20\x61\x6d\x20\x61\x20\x68\x69\x67\x68"
+	"\x6c\x79\x20\x63\x6f\x6d\x70\x72\x65\x73\x73\x61\x62\x6c\x65\x20"
+	"\x62\x69\x74\x20\x6f\x66\x20\x74\x65\x78\x74\x2e\x0a\x28\x00\x3d"
+	"\xf1\x25\x54\x68\x65\x72\x65\x20\x61\x72\x65\x20\x6d\x61\x6e\x79"
+	"\x20\x6c\x69\x6b\x65\x20\x6d\x65\x2c\x20\x62\x75\x74\x20\x74\x68"
+	"\x69\x73\x20\x6f\x6e\x65\x20\x69\x73\x20\x6d\x69\x6e\x65\x2e\x0a"
+	"\x49\x66\x20\x49\x20\x77\x32\x00\xd1\x6e\x79\x20\x73\x68\x6f\x72"
+	"\x74\x65\x72\x2c\x20\x74\x45\x00\xf4\x0b\x77\x6f\x75\x6c\x64\x6e"
+	"\x27\x74\x20\x62\x65\x20\x6d\x75\x63\x68\x20\x73\x65\x6e\x73\x65"
+	"\x20\x69\x6e\x0a\xcf\x00\x50\x69\x6e\x67\x20\x6d\x12\x00\x00\x32"
+	"\x00\xf0\x11\x20\x66\x69\x72\x73\x74\x20\x70\x6c\x61\x63\x65\x2e"
+	"\x20\x41\x74\x20\x6c\x65\x61\x73\x74\x20\x77\x69\x74\x68\x20\x6c"
+	"\x7a\x6f\x2c\x63\x00\xf5\x14\x77\x61\x79\x2c\x0a\x77\x68\x69\x63"
+	"\x68\x20\x61\x70\x70\x65\x61\x72\x73\x20\x74\x6f\x20\x62\x65\x68"
+	"\x61\x76\x65\x20\x70\x6f\x6f\x72\x6c\x79\x4e\x00\x30\x61\x63\x65"
+	"\x27\x01\x01\x95\x00\x01\x2d\x01\xb0\x0a\x6d\x65\x73\x73\x61\x67"
+	"\x65\x73\x2e\x0a\x00\x00\x00\x00\x9d\x12\x8c\x9d";
+static const unsigned long lz4_cs_compressed_size =
+	sizeof(lz4_cs_compressed) - 1;
+
 /* zstd -19 -c /tmp/plain.txt > /tmp/plain.zst */
 static const char zstd_compressed[] =
 	"\x28\xb5\x2f\xfd\x64\x5e\x00\xbd\x05\x00\x02\x0e\x26\x1a\x70\x17"
@@ -504,6 +527,58 @@ static int compression_test_zstd(struct unit_test_state *uts)
 			uncompress_using_zstd);
 }
 LIB_TEST(compression_test_zstd, 0);
+
+/* Test image_decomp_size() on each format */
+static int compression_test_size(struct unit_test_state *uts)
+{
+	ulong comp_size = TEST_BUFFER_SIZE;
+	ulong size;
+	void *buf;
+
+	buf = malloc(TEST_BUFFER_SIZE);
+	ut_assertnonnull(buf);
+
+	ut_assertok(image_decomp_size(IH_COMP_NONE, plain, strlen(plain),
+				      &size));
+	ut_asserteq(strlen(plain), size);
+
+	/* gzip records the size in its trailer */
+	ut_assertok(gzip(buf, &comp_size, (void *)plain, strlen(plain)));
+	ut_assertok(image_decomp_size(IH_COMP_GZIP, buf, comp_size, &size));
+	ut_asserteq(strlen(plain), size);
+	ut_asserteq(-EINVAL, image_decomp_size(IH_COMP_GZIP, buf, 4, &size));
+
+	/* bzip2 and lzo do not record it */
+	ut_asserteq(-EOPNOTSUPP,
+		    image_decomp_size(IH_COMP_BZIP2, bzip2_compressed,
+				      bzip2_compressed_size, &size));
+	ut_asserteq(-EOPNOTSUPP,
+		    image_decomp_size(IH_COMP_LZO, lzo_compressed,
+				      lzo_compressed_size, &size));
+
+	/* lzma has a field for it but the lzma tool leaves it unknown */
+	ut_asserteq(-EOPNOTSUPP,
+		    image_decomp_size(IH_COMP_LZMA, lzma_compressed,
+				      lzma_compressed_size, &size));
+
+	/* lz4 records it only when asked to */
+	ut_asserteq(-EOPNOTSUPP,
+		    image_decomp_size(IH_COMP_LZ4, lz4_compressed,
+				      lz4_compressed_size, &size));
+	ut_assertok(image_decomp_size(IH_COMP_LZ4, lz4_cs_compressed,
+				      lz4_cs_compressed_size, &size));
+	ut_asserteq(strlen(plain), size);
+
+	/* zstd records it when compressing a file */
+	ut_assertok(image_decomp_size(IH_COMP_ZSTD, zstd_compressed,
+				      zstd_compressed_size, &size));
+	ut_asserteq(strlen(plain), size);
+
+	free(buf);
+
+	return 0;
+}
+LIB_TEST(compression_test_size, 0);
 
 static int compress_using_none(struct unit_test_state *uts,
 			       void *in, unsigned long in_size,
