@@ -362,7 +362,7 @@ int fdt_chosen(void *fdt)
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		fdt_kaslrseed(fdt, false);
 
-	if (IS_ENABLED(CONFIG_BOARD_RNG_SEED) && !board_rng_seed(&buf)) {
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED) && !board_rng_seed(&buf)) {
 		err = fdt_setprop(fdt, nodeoffset, "rng-seed",
 				  abuf_data(&buf), abuf_size(&buf));
 		abuf_uninit(&buf);

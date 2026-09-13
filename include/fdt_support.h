@@ -200,7 +200,7 @@ int ft_board_setup(void *blob, struct bd_info *bd);
 /**
  * board_rng_seed() - Provide a seed to be passed via /chosen/rng-seed
  *
- * This function is called if CONFIG_BOARD_RNG_SEED is set, and must
+ * This function is called if CONFIG_FDT_RNG_SEED is set, and must
  * be provided by the board. It should return, via @buf, some suitable
  * seed value to pass to the kernel. Seed size could be set in a decimal
  * environment variable rng_seed_size and it defaults to 64 bytes.

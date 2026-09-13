@@ -799,7 +799,7 @@ void fwu_plat_get_bootidx(uint *boot_idx)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_BOARD_RNG_SEED)
+#if IS_ENABLED(CONFIG_FDT_RNG_SEED)
 /* Use hardware rng to seed Linux random. */
 __weak int board_rng_seed(struct abuf *buf)
 {

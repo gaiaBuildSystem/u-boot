@@ -467,7 +467,7 @@ __weak int misc_init_r(void)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_BOARD_RNG_SEED) && IS_ENABLED(CONFIG_RNG_ROCKCHIP)
+#if IS_ENABLED(CONFIG_FDT_RNG_SEED) && IS_ENABLED(CONFIG_RNG_ROCKCHIP)
 #include <rng.h>
 
 /* Use hardware rng to seed Linux random. */

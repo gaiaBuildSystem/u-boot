@@ -1008,7 +1008,7 @@ config TPL_STACKPROTECTOR
 	bool "Stack Protector buffer overflow detection for TPL"
 	depends on STACKPROTECTOR && TPL
 
-config BOARD_RNG_SEED
+config FDT_RNG_SEED
 	bool "Provide /chosen/rng-seed property to the linux kernel"
 	depends on !COMPILE_TEST
 	help
