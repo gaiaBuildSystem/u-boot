@@ -35,6 +35,21 @@ int gzip_parse_header(const unsigned char *src, unsigned long len);
 int gunzip(void *dst, int dstlen, unsigned char *src, unsigned long *lenp);
 
 /**
+ * gzip_uncompressed_size() - Find the uncompressed size of gzipped data
+ *
+ * A gzip stream ends with the size of the uncompressed data, so this can be
+ * found without decompressing anything. Only the low 32 bits are stored and
+ * the value is for the last member only, so this is only useful for a
+ * single-member stream of less than 4GB, which is what images use.
+ *
+ * @src: Source data
+ * @len: Length of data at @src, which must be the exact length of the stream
+ * @sizep: Returns the uncompressed size
+ * Return: 0 if OK, -EINVAL if the data does not have a valid gzip header
+ */
+int gzip_uncompressed_size(const void *src, ulong len, ulong *sizep);
+
+/**
  * zunzip() - Uncompress blocks compressed with zlib without headers
  *
  * @dst: Destination for uncompressed data
