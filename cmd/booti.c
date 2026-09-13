@@ -17,6 +17,45 @@
 #include <linux/sizes.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+/**
+ * decomp_direct() - Try to decompress an Image straight to its final address
+ *
+ * This works when the compressed data records its uncompressed size, so that
+ * the space can be reserved before decompressing, avoiding any later copy.
+ *
+ * @ctype: Compression type (IH_COMP_...)
+ * @ld: Address of the compressed Image
+ * @comp_len: Length of the compressed data
+ * @destp: Returns the address of the decompressed Image
+ * @sizep: Returns the uncompressed size, as passed to booti_alloc()
+ * Return: 0 if OK, -ve if the size is not known, no space could be found or
+ * decompression failed, in which case kernel_comp_addr_r should be used
+ */
+static int decomp_direct(int ctype, ulong ld, ulong comp_len, ulong *destp,
+			 ulong *sizep)
+{
+	ulong dest, size, end;
+	int ret;
+
+	ret = image_decomp_size(ctype, map_sysmem(ld, 0), comp_len, &size);
+	if (ret)
+		return ret;
+	ret = booti_alloc(size, &dest);
+	if (ret)
+		return ret;
+	ret = image_decomp(ctype, dest, ld, IH_TYPE_KERNEL,
+			   map_sysmem(dest, size), map_sysmem(ld, 0), comp_len,
+			   size, &end);
+	if (ret) {
+		lmb_free(dest, size);
+		return ret;
+	}
+	*destp = dest;
+	*sizep = size;
+
+	return 0;
+}
+
 /*
  * Image booting support
  */
@@ -32,6 +71,7 @@ static int booti_start(struct bootm_info *bmi)
 	ulong dest_end;
 	unsigned long comp_len;
 	unsigned long decomp_len;
+	bool placed = false;
 	int ctype;
 
 	ret = bootm_run_states(bmi, BOOTM_STATE_START);
@@ -49,31 +89,47 @@ static int booti_start(struct bootm_info *bmi)
 	temp = map_sysmem(ld, 0);
 	ctype = image_decomp_type(temp, 2);
 	if (ctype > 0) {
-		dest = env_get_ulong("kernel_comp_addr_r", 16, 0);
 		comp_len = env_get_ulong("kernel_comp_size", 16, 0);
-		if (!dest || !comp_len) {
-			puts("kernel_comp_addr_r or kernel_comp_size is not provided!\n");
-			return -EINVAL;
-		}
-		if (dest < gd->ram_base || dest > gd->ram_top) {
-			puts("kernel_comp_addr_r is outside of DRAM range!\n");
+		if (!comp_len) {
+			puts("kernel_comp_size is not provided!\n");
 			return -EINVAL;
 		}
 
-		debug("kernel image compression type %d size = 0x%08lx address = 0x%08lx\n",
-			ctype, comp_len, (ulong)dest);
-		decomp_len = comp_len * 10;
-		ret = image_decomp(ctype, 0, ld, IH_TYPE_KERNEL,
-				 (void *)dest, (void *)ld, comp_len,
-				 decomp_len, &dest_end);
-		if (ret)
-			return ret;
-		/* dest_end contains the uncompressed Image size */
-		memmove((void *) ld, (void *)dest, dest_end);
+		/*
+		 * Put the Image straight where it will run from if possible,
+		 * otherwise decompress it to kernel_comp_addr_r and let
+		 * booti_setup() move it if it needs to
+		 */
+		if (!decomp_direct(ctype, ld, comp_len, &dest, &decomp_len)) {
+			placed = true;
+		} else {
+			dest = env_get_ulong("kernel_comp_addr_r", 16, 0);
+			if (!dest) {
+				puts("kernel_comp_addr_r is not provided!\n");
+				return -EINVAL;
+			}
+			if (dest < gd->ram_base || dest > gd->ram_top) {
+				puts("kernel_comp_addr_r is outside of DRAM range!\n");
+				return -EINVAL;
+			}
+
+			debug("kernel image compression type %d size = 0x%08lx address = 0x%08lx\n",
+			      ctype, comp_len, (ulong)dest);
+			decomp_len = comp_len * 10;
+			ret = image_decomp(ctype, dest, ld, IH_TYPE_KERNEL,
+					   (void *)dest, (void *)ld, comp_len,
+					   decomp_len, &dest_end);
+			if (ret)
+				return ret;
+		}
+		ld = dest;
 	}
-	unmap_sysmem((void *)ld);
+	unmap_sysmem(temp);
 
-	ret = booti_setup(ld, &relocated_addr, &image_size, false);
+	if (placed)
+		ret = booti_check(ld, decomp_len, &relocated_addr, &image_size);
+	else
+		ret = booti_setup(ld, &relocated_addr, &image_size, false);
 	if (ret)
 		return 1;
 

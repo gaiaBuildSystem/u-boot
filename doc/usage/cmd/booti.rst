@@ -36,13 +36,32 @@ fdt
 To support compressed Image files the following environment variables must be
 set:
 
-kernel_comp_addr_r
-    start of memory area used for decompression
-
 kernel_comp_size
     size of the compressed file. The value has to be at least the size of
     loaded image for decompression to succeed. For the booti command the
-    maximum decompressed size is 10 times this value.
+    maximum decompressed size is 10 times this value. To decompress the Image
+    straight to where it will run from (see below) this must be the exact
+    size, e.g. ``$filesize`` after loading it.
+
+kernel_comp_addr_r
+    start of memory area used for decompression. This is not needed if the
+    Image can be decompressed straight to where it will run from (see below).
+
+Placement
+---------
+
+A Linux Image must be placed at text_offset bytes (a field in its header)
+from a 2MB-aligned base. If it is loaded to such an address it is left where
+it is; otherwise it is moved to a suitable region of free memory, with a
+message like ``Moving Image from 8080000 to 8200000``. To avoid the copy, load
+the Image to an address which is already correctly aligned.
+
+A compressed Image is decompressed straight to a suitable address, so that it
+is never moved, if its uncompressed size can be read from the compressed data.
+That is the case for gzip and normally for zstd, but only for lzma and lz4 if
+the encoder recorded the size (e.g. ``lz4 --content-size``) and never for
+bzip2 or lzo. Otherwise it is decompressed to kernel_comp_addr_r first and
+then moved if necessary.
 
 Example
 -------
@@ -77,17 +96,15 @@ Here is the boot log for the compressed kernel:
 
 ::
 
-    => env set kernel_comp_addr_r 0x50000000
-    => env set kernel_comp_size 0x04000000
     => load mmc 0:1 $fdt_addr_r dtb-5.10.0-3-arm64
     27530 bytes read in 6 ms (4.4 MiB/s)
     => load mmc 0:1 $kernel_addr_r vmlinuz-5.10.0-3-arm64.gz
     9267730 bytes read in 402 ms (22 MiB/s)
+    => env set kernel_comp_size $filesize
     => load mmc 0:1 $ramdisk_addr_r initrd.img-5.10.0-3-arm64
     27421776 bytes read in 1181 ms (22.1 MiB/s)
     => booti $kernel_addr_r $ramdisk_addr_r:$filesize $fdt_addr_r
-       Uncompressing Kernel Image
-    Moving Image from 8080000 to 8200000, end 9c60000
+       Uncompressing Kernel Image to 7a600000
     ## Flattened Device Tree blob at 08008000
        Booting using the fdt blob at 0x8008000
        Loading Ramdisk to 7a52a000, end 7bf50c50 ... OK
