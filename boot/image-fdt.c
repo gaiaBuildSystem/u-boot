@@ -23,6 +23,7 @@
 #include <asm/global_data.h>
 #include <linux/libfdt.h>
 #include <mapmem.h>
+#include <tpm_tcg2.h>
 #include <asm/io.h>
 #include <dm/ofnode.h>
 #include <tee/optee.h>
@@ -639,6 +640,19 @@ int image_setup_libfdt(struct bootm_headers *images, void *blob, bool lmb)
 	if (fdt_chosen(blob) < 0) {
 		printf("ERROR: /chosen node create failed\n");
 		goto err;
+	}
+
+	/* Tell the OS where the TPM event log is, if the kernel was measured */
+	if (IS_ENABLED(CONFIG_MEASURED_BOOT) && images->tpm_log_len) {
+		fdt_ret = tcg2_fdt_set_log(blob, images->tpm_log,
+					   images->tpm_log_len);
+		if (fdt_ret == -ENOENT) {
+			log_warning("No TPM node in devicetree, so the event log cannot be passed to the OS\n");
+		} else if (fdt_ret) {
+			printf("ERROR: TPM event-log fixup failed (err=%d)\n",
+			       fdt_ret);
+			goto err;
+		}
 	}
 	if (arch_fixup_fdt(blob) < 0) {
 		printf("ERROR: arch-specific fdt fixup failed\n");

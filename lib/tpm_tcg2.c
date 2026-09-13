@@ -16,6 +16,7 @@
 #include <version_string.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
+#include <linux/libfdt.h>
 #include <linux/unaligned/be_byteshift.h>
 #include <linux/unaligned/generic.h>
 #include <linux/unaligned/le_byteshift.h>
@@ -749,3 +750,35 @@ u32 tcg2_algorithm_to_mask(enum tpm2_algorithms algo)
 }
 
 __weak void tcg2_platform_startup_error(struct udevice *dev, int rc) {}
+
+int tcg2_fdt_set_log(void *fdt, ulong addr, ulong size)
+{
+	struct udevice *dev;
+	const char *compat;
+	char path[128];
+	int node, rc, i;
+
+	rc = tcg2_platform_get_tpm2(&dev);
+	if (rc)
+		return rc;
+
+	/* Find the TPM in the target tree, by path first and then compatible */
+	node = -FDT_ERR_NOTFOUND;
+	if (!ofnode_get_path(dev_ofnode(dev), path, sizeof(path)))
+		node = fdt_path_offset(fdt, path);
+	for (i = 0; node < 0 &&
+	     !dev_read_string_index(dev, "compatible", i, &compat); i++)
+		node = fdt_node_offset_by_compatible(fdt, -1, compat);
+	if (node < 0)
+		return -ENOENT;
+
+	rc = fdt_setprop_u64(fdt, node, "linux,sml-base", addr);
+	if (!rc)
+		rc = fdt_setprop_u32(fdt, node, "linux,sml-size", size);
+	if (!rc)
+		rc = fdt_add_mem_rsv(fdt, addr, size);
+	if (rc)
+		return rc == -FDT_ERR_NOSPACE ? -ENOSPC : -EINVAL;
+
+	return 0;
+}

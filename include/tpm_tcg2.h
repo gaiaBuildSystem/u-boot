@@ -330,6 +330,23 @@ int tcg2_platform_get_log(struct udevice *dev, void **ptrp, u32 *sizep);
 int tcg2_platform_get_tpm2(struct udevice **dev);
 
 /**
+ * tcg2_fdt_set_log() - Tell Linux where the event log is
+ *
+ * Adds the 'linux,sml-base' and 'linux,sml-size' properties to the TPM node
+ * of the given devicetree, which is how the kernel's TPM driver finds the log
+ * on a non-EFI boot, and reserves the memory so that it survives until the
+ * driver reads it. The TPM node is found by the path of U-Boot's own TPM node
+ * or, failing that, by its compatible string.
+ *
+ * @fdt: Devicetree to update (the one to be passed to the OS)
+ * @addr: Address of the event log
+ * @size: Size of the event log in bytes
+ * Return: 0 if OK, -ENOENT if the devicetree has no TPM node, -ENOSPC if it
+ * has no room for the properties, other -ve value on error
+ */
+int tcg2_fdt_set_log(void *fdt, ulong addr, ulong size);
+
+/**
  * Platform-specific function for handling TPM startup errors
  *
  * @dev		TPM device

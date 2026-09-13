@@ -450,6 +450,8 @@ struct bootm_headers {
 
 	char		*ft_addr;	/* flat dev tree address */
 	ulong		ft_len;		/* length of flat device tree */
+	ulong		tpm_log;	/* TPM event log address, 0 if none */
+	ulong		tpm_log_len;	/* length of TPM event log */
 
 	ulong		initrd_start;
 	ulong		initrd_end;

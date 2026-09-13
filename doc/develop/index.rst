@@ -46,6 +46,7 @@ Implementation
    driver-model/index
    environment
    init
+   linux_direct_boot
    expo
    cedit
    event
