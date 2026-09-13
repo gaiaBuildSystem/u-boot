@@ -15,10 +15,43 @@
 #include <spl.h>
 #include <bloblist.h>
 
+/**
+ * simplefb_format_name() - Get the simple-framebuffer name for a pixel format
+ *
+ * @bpix: log2 of bits per pixel
+ * @format: Pixel format, or VIDEO_UNKNOWN to fall back to the depth alone
+ * Return: Format name as used in the 'format' property, or NULL if unsupported
+ */
+static const char *simplefb_format_name(int bpix, enum video_format format)
+{
+	switch (format) {
+	case VIDEO_X8R8G8B8:
+		return "x8r8g8b8";
+	case VIDEO_X8B8G8R8:
+		return "x8b8g8r8";
+	case VIDEO_X2R10G10B10:
+		return "x2r10g10b10";
+	case VIDEO_RGBA8888:
+		return "a8b8g8r8";
+	default:
+		break;
+	}
+
+	switch (bpix) {
+	case VIDEO_BPP16:
+		return "r5g6b5";
+	case VIDEO_BPP32:
+		return "a8r8g8b8";
+	default:
+		return NULL;
+	}
+}
+
 static int fdt_simplefb_configure_node(void *blob, int off)
 {
 	int xsize, ysize;
 	int bpix; /* log2 of bits per pixel */
+	enum video_format format;
 	const char *name;
 	ulong fb_base;
 	struct video_uc_plat *plat;
@@ -37,6 +70,7 @@ static int fdt_simplefb_configure_node(void *blob, int off)
 		ysize = ho->ysize;
 		bpix = ho->bpix;
 		fb_base = ho->fb;
+		format = ho->format;
 	} else {
 		ret = uclass_first_device_err(UCLASS_VIDEO, &dev);
 		if (ret)
@@ -47,20 +81,14 @@ static int fdt_simplefb_configure_node(void *blob, int off)
 		ysize = uc_priv->ysize;
 		bpix = uc_priv->bpix;
 		fb_base = plat->base;
+		format = uc_priv->format;
 		log_debug("simplefb: fb %lx x %d y %d bpix %x\n", fb_base,
 			  xsize, ysize, bpix);
 	}
 
-	switch (bpix) {
-	case 4: /* VIDEO_BPP16 */
-		name = "r5g6b5";
-		break;
-	case 5: /* VIDEO_BPP32 */
-		name = "a8r8g8b8";
-		break;
-	default:
+	name = simplefb_format_name(bpix, format);
+	if (!name)
 		return -EINVAL;
-	}
 
 	return fdt_setup_simplefb_node(blob, off, fb_base, xsize, ysize,
 				       xsize * (1 << bpix) / 8, name);
