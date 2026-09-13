@@ -106,6 +106,27 @@ memory, which is how Linux finds a firmware-provided log on any non-EFI boot.
 This works with a distro devicetree, not just U-Boot's own. See
 :doc:`../usage/measured_boot`.
 
+Display
+-------
+
+If U-Boot has set up a display, the EFI stub passes its framebuffer to the
+kernel through the screen-information structure it fills from the GOP, so that
+efifb or simpledrm can use the display until the real driver loads. On the
+direct path the equivalent is a simple-framebuffer node under /chosen, which
+CONFIG_FDT_SIMPLEFB_HANDOFF adds to the outgoing devicetree, or fills in and
+enables if the devicetree already contains one, along with a no-map
+reserved-memory entry so that the kernel leaves the framebuffer alone. The
+kernel populates such a node before any other device, and disables its generic
+system-framebuffer support when it finds one.
+
+The node does not list the clocks and power domains which keep the display
+running, since these are phandles into a devicetree U-Boot did not write. A
+kernel which gates unused clocks may therefore blank the display before its
+own driver claims it. A pre-filled, disabled simple-framebuffer node in the
+devicetree, as the binding recommends, avoids this, since U-Boot then only
+fills in the mode and enables the node. The EFI path has the same limitation,
+as the screen information carries no clock details either.
+
 Other features of the EFI stub
 ------------------------------
 
@@ -132,8 +153,8 @@ do not apply outside EFI:
      - FIT signatures and VBE verify the devicetree along with the kernel;
        extlinux and BLS do not verify their files
    * - Screen information for efifb
-     - A simple-framebuffer node, added by fdt_simplefb_add_node() on boards
-       which call it
+     - A simple-framebuffer node under /chosen, with the memory reserved (see
+       Display below)
    * - Checks the CPU supports the kernel's page-granule size and prints an
        error
      - booti compares the page size in the Image header with the CPU's and

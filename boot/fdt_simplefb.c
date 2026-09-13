@@ -146,3 +146,61 @@ int fdt_simplefb_enable_and_mem_rsv(void *blob)
 
 	return fdt_add_fb_mem_rsv(blob);
 }
+
+/**
+ * fdt_simplefb_add_chosen_node() - Add a simple-framebuffer node under /chosen
+ *
+ * The binding requires the node to be under /chosen, with its 'reg' in the
+ * root's address space, so /chosen is given the root's cell sizes and an
+ * empty 'ranges' property.
+ *
+ * @blob: Devicetree to update
+ * Return: Offset of the new node, or -ve libfdt error
+ */
+static int fdt_simplefb_add_chosen_node(void *blob)
+{
+	int chosen, off, addrc, sizec, ret;
+
+	chosen = fdt_find_or_add_subnode(blob, 0, "chosen");
+	if (chosen < 0)
+		return chosen;
+
+	fdt_support_default_count_cells(blob, 0, &addrc, &sizec);
+	ret = fdt_setprop_u32(blob, chosen, "#address-cells", addrc);
+	if (!ret)
+		ret = fdt_setprop_u32(blob, chosen, "#size-cells", sizec);
+	if (!ret)
+		ret = fdt_setprop_empty(blob, chosen, "ranges");
+	if (ret)
+		return ret;
+
+	off = fdt_add_subnode(blob, chosen, "framebuffer");
+	if (off < 0)
+		return off;
+	ret = fdt_setprop_string(blob, off, "compatible", "simple-framebuffer");
+	if (ret)
+		return ret;
+
+	return off;
+}
+
+int fdt_simplefb_handoff(void *blob)
+{
+	int off, ret;
+
+	/* nothing to do when video is not active */
+	if (!video_is_active())
+		return 0;
+
+	off = fdt_node_offset_by_compatible(blob, -1, "simple-framebuffer");
+	if (off < 0) {
+		off = fdt_simplefb_add_chosen_node(blob);
+		if (off < 0)
+			return off;
+	}
+	ret = fdt_simplefb_configure_node(blob, off);
+	if (ret)
+		return ret;
+
+	return fdt_add_fb_mem_rsv(blob);
+}

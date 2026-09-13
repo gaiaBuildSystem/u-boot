@@ -11,6 +11,7 @@
 #define LOG_CATEGORY	LOGC_BOOT
 
 #include <command.h>
+#include <fdt_simplefb.h>
 #include <fdt_support.h>
 #include <fdtdec.h>
 #include <efi.h>
@@ -674,6 +675,14 @@ int image_setup_libfdt(struct bootm_headers *images, void *blob, bool lmb)
 
 	/* Update ethernet nodes */
 	fdt_fixup_ethernet(blob);
+
+	/* Describe the display to the OS, if there is one */
+	if (IS_ENABLED(CONFIG_FDT_SIMPLEFB_HANDOFF)) {
+		fdt_ret = fdt_simplefb_handoff(blob);
+		if (fdt_ret)
+			log_warning("Framebuffer hand-off failed (err=%d)\n",
+				    fdt_ret);
+	}
 #if IS_ENABLED(CONFIG_CMD_PSTORE)
 	/* Append PStore configuration */
 	fdt_fixup_pstore(blob);

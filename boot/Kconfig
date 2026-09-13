@@ -2238,6 +2238,24 @@ config FDT_SIMPLEFB
 	  the presence of the simple frame buffer with associated reserved
 	  memory
 
+config FDT_SIMPLEFB_HANDOFF
+	bool "Pass the framebuffer to the OS as a simple-framebuffer node"
+	depends on FDT_SIMPLEFB
+	help
+	  When booting an OS with a devicetree, describe the display which
+	  U-Boot has set up in a simple-framebuffer node under /chosen, so
+	  that the OS can keep using it until its own display driver takes
+	  over. If the devicetree already has such a node it is filled in and
+	  enabled; otherwise one is added. The framebuffer memory is reserved
+	  so that the OS does not reuse it.
+
+	  The node cannot list the clocks and power domains which keep the
+	  display running, so a kernel which turns off unused clocks may blank
+	  the display before its driver loads. A devicetree with a pre-filled,
+	  disabled simple-framebuffer node, as the binding recommends, avoids
+	  this. Boards which call the fdt_simplefb functions themselves do not
+	  need this option.
+
 config ARCH_FIXUP_FDT_MEMORY
 	bool "Enable fdt_fixup_memory_banks() call"
 	default y
