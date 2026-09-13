@@ -1101,6 +1101,7 @@ libs-$(CONFIG_LEGACY_API) += legacy_api/
 libs-$(HAVE_VENDOR_COMMON_LIB) += board/$(VENDOR)/common/
 libs-y += boot/
 libs-$(CONFIG_CMDLINE) += cmd/
+libs-$(CONFIG_CMD_DOOM) += lib/doom/
 libs-y += common/
 libs-$(CONFIG_OF_EMBED) += dts/
 libs-y += env/

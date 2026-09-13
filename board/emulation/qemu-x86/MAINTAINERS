@@ -11,4 +11,5 @@ S:	Maintained
 F:	board/emulation/qemu-x86/
 F:	board/emulation/common/
 F:	configs/qemu-x86_64_defconfig
+F:	configs/qemu-x86_64_doom_defconfig
 F:	configs/qemu-x86_64_nospl_defconfig

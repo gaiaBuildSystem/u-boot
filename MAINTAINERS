@@ -997,6 +997,13 @@ S:	Maintained
 F:	dts/upstream/
 N:	OF_UPSTREAM
 
+DOOM
+M:	Simon Glass <sjg@chromium.org>
+S:	Maintained
+F:	cmd/doom.c
+F:	doc/usage/cmd/doom.rst
+F:	lib/doom/
+
 DFU
 M:	Lukasz Majewski <lukma@denx.de>
 M:	Mattijs Korpershoek <mkorpershoek@kernel.org>
