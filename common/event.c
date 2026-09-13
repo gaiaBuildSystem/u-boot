@@ -62,6 +62,9 @@ const char *const type_name[] = {
 
 	/* livetree has been built */
 	"of_live_init",
+
+	/* rng-seed for the OS devicetree */
+	"rng_seed",
 };
 
 _Static_assert(ARRAY_SIZE(type_name) == EVT_COUNT, "event type_name size");

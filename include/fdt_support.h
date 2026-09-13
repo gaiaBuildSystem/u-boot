@@ -198,19 +198,6 @@ int fdt_find_or_add_subnode(void *fdt, int parentoffset, const char *name);
 int ft_board_setup(void *blob, struct bd_info *bd);
 
 /**
- * board_rng_seed() - Provide a seed to be passed via /chosen/rng-seed
- *
- * This function is called if CONFIG_FDT_RNG_SEED is set, and must
- * be provided by the board. It should return, via @buf, some suitable
- * seed value to pass to the kernel. Seed size could be set in a decimal
- * environment variable rng_seed_size and it defaults to 64 bytes.
- *
- * @param buf         A struct abuf for returning the seed and its size.
- * @return            0 if ok, negative on error.
- */
-int board_rng_seed(struct abuf *buf);
-
-/**
  * board_fdt_chosen_bootargs() - Arbitrarily amend fdt kernel command line
  *
  * @fdt_ba: FDT chosen/bootargs from the kernel image if available

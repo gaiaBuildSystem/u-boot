@@ -1010,17 +1010,18 @@ config TPL_STACKPROTECTOR
 
 config FDT_RNG_SEED
 	bool "Provide /chosen/rng-seed property to the linux kernel"
-	depends on !COMPILE_TEST
 	help
-	  Selecting this option requires the board to define a
-	  board_rng_seed() function, which should return a buffer
-	  which will be used to populate the /chosen/rng-seed property
-	  in the device tree for the OS being booted.
+	  Populate the /chosen/rng-seed property in the devicetree for the
+	  OS being booted, so that the Linux random-number generator can be
+	  seeded before it has gathered any entropy of its own.
 
-	  It is up to the board code (and more generally the whole
-	  BSP) where and how to store (or generate) such a seed, how
-	  to ensure a given seed is only used once, how to create a
-	  new seed for use on subsequent boots, and whether or not the
+	  By default the seed is read from the first RNG device, so a board
+	  with a driver in the RNG uclass needs nothing more. A board with a
+	  different source of entropy can provide the seed by handling the
+	  EVT_RNG_SEED event. It is then up to the board code (and more
+	  generally the whole BSP) where and how to store (or generate) such
+	  a seed, how to ensure a given seed is only used once, how to create
+	  a new seed for use on subsequent boots, and whether or not the
 	  kernel should account any entropy from the given seed.
 
 	  Default seed size (64 bytes) can be overridden by a decimal

@@ -9,7 +9,9 @@
 #include <dm.h>
 #include <abuf.h>
 #include <env.h>
+#include <event.h>
 #include <log.h>
+#include <malloc.h>
 #include <mapmem.h>
 #include <net.h>
 #include <rng.h>
@@ -334,6 +336,64 @@ __weak const char *board_fdt_chosen_bootargs(const struct fdt_property *fdt_ba)
 	return env_get("bootargs");
 }
 
+/**
+ * get_rng_seed() - Obtain a seed for /chosen/rng-seed
+ *
+ * A board with its own source of entropy can provide the seed by handling
+ * EVT_RNG_SEED; otherwise it is read from the first RNG device. The size of
+ * the seed read from the RNG can be set with the rng_seed_size environment
+ * variable and defaults to 64 bytes.
+ *
+ * @buf: Returns the seed, or an empty buffer if none is available
+ * Return: 0 if OK (even with no seed), -ve on error
+ */
+static int get_rng_seed(struct abuf *buf)
+{
+	struct event_rng_seed evt = { .buf = buf };
+	struct udevice *dev;
+	void *data;
+	ulong len;
+	int ret;
+
+	abuf_init(buf);
+	ret = event_notify(EVT_RNG_SEED, &evt, sizeof(evt));
+	if (ret)
+		return ret;
+	if (abuf_size(buf) || !IS_ENABLED(CONFIG_DM_RNG))
+		return 0;
+
+	len = env_get_ulong("rng_seed_size", 10, 64);
+	if (len < 64) {
+		/*
+		 * rng_seed_size should be at least 32 bytes for Linux 5.19+,
+		 * or 64 for older Linux kernel versions
+		 */
+		log_warning("Value for rng_seed_size (%lu) too low, Linux kernel RNG may fail to initialize early\n",
+			    len);
+	}
+
+	ret = uclass_get_device(UCLASS_RNG, 0, &dev);
+	if (ret) {
+		printf("No RNG device\n");
+		return ret;
+	}
+
+	data = malloc(len);
+	if (!data)
+		return -ENOMEM;
+
+	ret = dm_rng_read(dev, data, len);
+	if (ret) {
+		printf("Reading RNG failed (err=%d)\n", ret);
+		free(data);
+		return ret;
+	}
+
+	abuf_init_move(buf, data, len);
+
+	return 0;
+}
+
 int fdt_chosen(void *fdt)
 {
 	struct abuf buf = {};
@@ -362,7 +422,8 @@ int fdt_chosen(void *fdt)
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		fdt_kaslrseed(fdt, false);
 
-	if (IS_ENABLED(CONFIG_FDT_RNG_SEED) && !board_rng_seed(&buf)) {
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED) && !get_rng_seed(&buf) &&
+	    abuf_size(&buf)) {
 		err = fdt_setprop(fdt, nodeoffset, "rng-seed",
 				  abuf_data(&buf), abuf_size(&buf));
 		abuf_uninit(&buf);
