@@ -1159,6 +1159,26 @@ static inline int image_check_target_arch(const struct legacy_img_hdr *hdr)
 int image_decomp_type(const unsigned char *buf, ulong len);
 
 /**
+ * image_decomp_size() - Find the uncompressed size of an image
+ *
+ * This looks at the compressed data without decompressing it, so that the
+ * space needed can be known before decompression starts, e.g. to decompress
+ * straight to the address the image will run from. Not all formats record
+ * the size, and encoders which stream their input often omit it even when the
+ * format allows it, so callers must cope with this failing.
+ *
+ * @comp:	Compression algorithm that is used (IH_COMP_...)
+ * @buf:	Compressed data
+ * @len:	Number of bytes at @buf; for gzip this must be the exact length
+ *		of the stream, since the size is at the end
+ * @sizep:	Returns the uncompressed size
+ * Return: 0 if OK, -EOPNOTSUPP if the format or this particular data does
+ * not record the size, -ENOSYS if the compression type is not supported,
+ * other -ve value if the data is not valid
+ */
+int image_decomp_size(int comp, const void *buf, ulong len, ulong *sizep);
+
+/**
  * image_decomp() - decompress an image
  *
  * @comp:	Compression algorithm that is used (IH_COMP_...)
