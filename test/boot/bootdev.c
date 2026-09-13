@@ -377,7 +377,9 @@ static int bootdev_test_prio(struct unit_test_state *uts)
 	ut_asserteq(0, bootflow_scan_next(&iter, &bflow));
 
 	ut_asserteq(-ENODEV, bootflow_scan_next(&iter, &bflow));
-	ut_asserteq(9, iter.num_devs);
+
+	/* the emulated NVMe controller brings a bootdev of its own */
+	ut_asserteq(IS_ENABLED(CONFIG_NVME_SANDBOX) ? 10 : 9, iter.num_devs);
 	ut_asserteq_str("hub1.p1.usb_mass_storage.lun0.bootdev",
 			iter.dev_used[0]->name);
 	ut_asserteq_str("mmc2.bootdev", iter.dev_used[1]->name);
