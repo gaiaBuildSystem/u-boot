@@ -455,4 +455,18 @@ struct abuf;
  */
 int zstd_decompress(struct abuf *in, struct abuf *out);
 
+/**
+ * zstd_uncompressed_size() - Find the uncompressed size of Zstandard data
+ *
+ * A zstd frame header records the content size unless the encoder streamed
+ * its input, in which case this fails.
+ *
+ * @src: Source data
+ * @len: Length of source data
+ * @sizep: Returns the uncompressed size
+ * Return: 0 if OK, -EINVAL if the frame header is not valid, -EOPNOTSUPP if
+ * the size is not recorded, -E2BIG if it does not fit in ulong
+ */
+int zstd_uncompressed_size(const void *src, size_t len, ulong *sizep);
+
 #endif  /* LINUX_ZSTD_H */
