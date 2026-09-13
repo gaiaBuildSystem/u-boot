@@ -95,3 +95,13 @@ bool booti_is_valid(const void *img)
 {
 	return false;
 }
+
+int booti_alloc(ulong size, ulong *addrp)
+{
+	return -ENOSYS;
+}
+
+int booti_check(ulong image, ulong size, ulong *relocated_addr, ulong *sizep)
+{
+	return -ENOSYS;
+}

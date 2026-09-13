@@ -5,6 +5,7 @@
  */
 
 #include <image.h>
+#include <lmb.h>
 #include <mapmem.h>
 #include <asm/global_data.h>
 #include <linux/bitops.h>
@@ -132,4 +133,44 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 
 	return booti_place(image, text_offset, image_size, flags, force_reloc,
 			   relocated_addr);
+}
+
+/**
+ * alloc_size() - Work out how much space to reserve for an Image
+ *
+ * An Image's .bss follows its file contents, and its size is only known once
+ * the header can be read, after decompression. Allow an eighth extra for it,
+ * so that the Image can normally stay where it is once its true size is known
+ *
+ * @size: Size of the Image file, i.e. the decompressed size
+ * Return: Size to reserve
+ */
+static ulong alloc_size(ulong size)
+{
+	return size + ALIGN(size / 8, SZ_2M);
+}
+
+int booti_alloc(ulong size, ulong *addrp)
+{
+	phys_addr_t addr;
+
+	if (!IS_ENABLED(CONFIG_LMB))
+		return -ENOSYS;
+	addr = lmb_alloc(alloc_size(size), SZ_2M);
+	if (!addr)
+		return -ENOSPC;
+	*addrp = addr;
+
+	return 0;
+}
+
+int booti_check(ulong image, ulong size, ulong *relocated_addr, ulong *sizep)
+{
+	/*
+	 * Release the space so that booti_setup() can reserve exactly what the
+	 * header says is needed, or move the Image if that is not possible
+	 */
+	lmb_free(image, alloc_size(size));
+
+	return booti_setup(image, relocated_addr, sizep, false);
 }
