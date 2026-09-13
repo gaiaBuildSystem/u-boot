@@ -124,6 +124,48 @@ static int booti_random_base(u64 image_size, u64 *basep)
 }
 
 /**
+ * booti_check_granule() - Check that the CPU supports the kernel's page size
+ *
+ * The Image header's flags say which page size the kernel was built for. A
+ * kernel started on a CPU which lacks that translation granule hangs silently
+ * in its own early check, so refuse it here with an explanation, as the
+ * kernel's EFI stub does.
+ *
+ * @flags: Kernel flags from the header
+ * Return: 0 if the page size is supported or not specified, -EOPNOTSUPP if not
+ */
+static int booti_check_granule(u64 flags)
+{
+	static const char *const name[] = { NULL, "4KB", "16KB", "64KB" };
+	int page = (flags >> 1) & 3;
+	u64 mmfr0;
+	bool ok;
+
+	if (!page)
+		return 0;
+
+	asm volatile("mrs %0, id_aa64mmfr0_el1" : "=r" (mmfr0));
+	switch (page) {
+	case 1:		/* TGran4: 0xf means not supported */
+		ok = ((mmfr0 >> 28) & 0xf) != 0xf;
+		break;
+	case 2:		/* TGran16: 0 means not supported */
+		ok = ((mmfr0 >> 20) & 0xf) != 0;
+		break;
+	default:	/* TGran64: 0xf means not supported */
+		ok = ((mmfr0 >> 24) & 0xf) != 0xf;
+		break;
+	}
+	if (!ok) {
+		printf("This %s-page kernel is not supported by the CPU\n",
+		       name[page]);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+/**
  * booti_place() - Decide where an Image should go
  *
  * @cur: Current address of the Image, or 0 if it is not in memory yet
@@ -199,6 +241,7 @@ static int setup_image(ulong image, ulong *relocated_addr, ulong *size,
 {
 	u64 image_size, text_offset, flags;
 	struct Image_header *ih;
+	int ret;
 
 	*relocated_addr = image;
 
@@ -211,6 +254,10 @@ static int setup_image(ulong image, ulong *relocated_addr, ulong *size,
 	booti_parse(ih, &text_offset, &image_size, &flags);
 	unmap_sysmem(ih);
 	*size = image_size;
+
+	ret = booti_check_granule(flags);
+	if (ret)
+		return ret;
 
 	return booti_place(image, text_offset, image_size, flags, force_reloc,
 			   placed, relocated_addr);
