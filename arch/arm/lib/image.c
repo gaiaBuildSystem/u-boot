@@ -35,12 +35,88 @@ bool booti_is_valid(const void *img)
 	return ih->magic == le32_to_cpu(LINUX_ARM64_IMAGE_MAGIC);
 }
 
+/**
+ * booti_parse() - Read the placement fields from an Image header
+ *
+ * @ih: Image header
+ * @text_offsetp: Returns the offset of the Image from its 2MB-aligned base
+ * @image_sizep: Returns the size of the Image in memory, including .bss
+ * @flagsp: Returns the kernel flags
+ */
+static void booti_parse(const struct Image_header *ih, u64 *text_offsetp,
+			u64 *image_sizep, u64 *flagsp)
+{
+	/*
+	 * Prior to Linux commit a2c1d73b94ed, the text_offset field
+	 * is of unknown endianness.  In these cases, the image_size
+	 * field is zero, and we can assume a fixed value of 0x80000.
+	 */
+	if (ih->image_size == 0) {
+		puts("Image lacks image_size field, assuming 16MiB\n");
+		*image_sizep = 16 << 20;
+		*text_offsetp = 0x80000;
+	} else {
+		*image_sizep = le64_to_cpu(ih->image_size);
+		*text_offsetp = le64_to_cpu(ih->text_offset);
+	}
+	*flagsp = le64_to_cpu(ih->flags);
+}
+
+/**
+ * booti_place() - Decide where an Image should go
+ *
+ * @cur: Current address of the Image, or 0 if it is not in memory yet
+ * @text_offset: Offset of the Image from its 2MB-aligned base
+ * @image_size: Size of the Image in memory
+ * @flags: Kernel flags from the header
+ * @force_reloc: Place the Image at the start of RAM regardless
+ * @addrp: Returns the address for the Image, i.e. its base plus text_offset
+ * Return: 0 if OK, -ENOSPC if there was not enough lmb space
+ */
+static int booti_place(ulong cur, u64 text_offset, u64 image_size, u64 flags,
+		       bool force_reloc, ulong *addrp)
+{
+	bool placed = false;
+	u64 dst;
+
+	/*
+	 * If bit 3 of the flags field is set, the 2MB aligned base of the
+	 * kernel image can be anywhere in physical memory, so respect
+	 * images->ep.  Otherwise, relocate the image to the base of RAM
+	 * since memory below it is not accessible via the linear mapping.
+	 */
+	if (!force_reloc && (flags & BIT(3))) {
+		if (IS_ENABLED(CONFIG_LMB)) {
+			/* Leave the Image where it is, if that will do */
+			if (cur >= text_offset &&
+			    IS_ALIGNED(cur - text_offset, SZ_2M) &&
+			    !lmb_alloc_addr(cur - text_offset, image_size,
+					    LMB_NONE)) {
+				dst = cur - text_offset;
+				placed = true;
+			}
+			if (!placed) {
+				dst = lmb_alloc(image_size, SZ_2M);
+				if (!dst)
+					return -ENOSPC;
+			}
+		} else {
+			dst = cur - text_offset;
+		}
+	} else {
+		dst = gd->dram[0].start;
+	}
+
+	*addrp = ALIGN(dst, SZ_2M) + text_offset;
+
+	return 0;
+}
+
 int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 		bool force_reloc)
 {
+	u64 image_size, text_offset, flags;
 	struct Image_header *ih;
-	uint64_t dst;
-	uint64_t image_size, text_offset;
 
 	*relocated_addr = image;
 
@@ -50,44 +126,10 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 		puts("Bad Linux ARM64 Image magic!\n");
 		return -EPERM;
 	}
-
-	/*
-	 * Prior to Linux commit a2c1d73b94ed, the text_offset field
-	 * is of unknown endianness.  In these cases, the image_size
-	 * field is zero, and we can assume a fixed value of 0x80000.
-	 */
-	if (ih->image_size == 0) {
-		puts("Image lacks image_size field, assuming 16MiB\n");
-		image_size = 16 << 20;
-		text_offset = 0x80000;
-	} else {
-		image_size = le64_to_cpu(ih->image_size);
-		text_offset = le64_to_cpu(ih->text_offset);
-	}
-
+	booti_parse(ih, &text_offset, &image_size, &flags);
+	unmap_sysmem(ih);
 	*size = image_size;
 
-	/*
-	 * If bit 3 of the flags field is set, the 2MB aligned base of the
-	 * kernel image can be anywhere in physical memory, so respect
-	 * images->ep.  Otherwise, relocate the image to the base of RAM
-	 * since memory below it is not accessible via the linear mapping.
-	 */
-	if (!force_reloc && (le64_to_cpu(ih->flags) & BIT(3))) {
-		if (IS_ENABLED(CONFIG_LMB)) {
-			dst = lmb_alloc(image_size, SZ_2M);
-			if (!dst)
-				return -ENOSPC;
-		} else {
-			dst = image - text_offset;
-		}
-	} else {
-		dst = gd->dram[0].start;
-	}
-
-	*relocated_addr = ALIGN(dst, SZ_2M) + text_offset;
-
-	unmap_sysmem(ih);
-
-	return 0;
+	return booti_place(image, text_offset, image_size, flags, force_reloc,
+			   relocated_addr);
 }
