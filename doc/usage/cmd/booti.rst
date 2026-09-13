@@ -63,6 +63,13 @@ the encoder recorded the size (e.g. ``lz4 --content-size``) and never for
 bzip2 or lzo. Otherwise it is decompressed to kernel_comp_addr_r first and
 then moved if necessary.
 
+If CONFIG_BOOTI_RANDOMIZE_BASE is enabled, the base is instead chosen at
+random from the free memory on each boot, using the RNG uclass, so that the
+kernel's physical address is not predictable. This is the physical part of
+KASLR, as done by the kernel's EFI stub. It is skipped if the kernel command
+line contains ``nokaslr``. A compressed Image is decompressed straight to the
+random address where possible; an uncompressed one is moved there.
+
 Example
 -------
 

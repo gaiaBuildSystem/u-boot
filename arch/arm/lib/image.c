@@ -4,9 +4,12 @@
  * Wolfgang Denk, DENX Software Engineering, wd@denx.de.
  */
 
+#include <dm.h>
+#include <env.h>
 #include <image.h>
 #include <lmb.h>
 #include <mapmem.h>
+#include <rng.h>
 #include <asm/global_data.h>
 #include <linux/bitops.h>
 #include <linux/sizes.h>
@@ -64,6 +67,63 @@ static void booti_parse(const struct Image_header *ih, u64 *text_offsetp,
 }
 
 /**
+ * bootargs_has_nokaslr() - Check whether the kernel command line has nokaslr
+ *
+ * Linux uses this to disable KASLR, including the physical randomisation done
+ * by its EFI stub, so honour it here too.
+ *
+ * Return: true if the bootargs environment variable contains 'nokaslr'
+ */
+static bool bootargs_has_nokaslr(void)
+{
+	const char *s = env_get("bootargs");
+
+	while (s && *s) {
+		const char *end;
+
+		while (*s == ' ')
+			s++;
+		end = strchrnul(s, ' ');
+		if (end - s == strlen("nokaslr") &&
+		    !strncmp(s, "nokaslr", end - s))
+			return true;
+		s = end;
+	}
+
+	return false;
+}
+
+/**
+ * booti_random_base() - Choose a random base for the Image
+ *
+ * @image_size: Size of the Image in memory
+ * @basep: Returns the 2MB-aligned base, reserved in lmb
+ * Return: 0 if OK, -ve if no RNG is available or no space was found
+ */
+static int booti_random_base(u64 image_size, u64 *basep)
+{
+	struct udevice *dev;
+	phys_addr_t base;
+	ulong rnd;
+	int ret;
+
+	ret = uclass_get_device(UCLASS_RNG, 0, &dev);
+	if (!ret)
+		ret = dm_rng_read(dev, &rnd, sizeof(rnd));
+	if (ret) {
+		printf("No RNG (err=%d), so not randomising Image placement\n",
+		       ret);
+		return ret;
+	}
+	ret = lmb_alloc_random(image_size, SZ_2M, LMB_NONE, rnd, &base);
+	if (ret)
+		return ret;
+	*basep = base;
+
+	return 0;
+}
+
+/**
  * booti_place() - Decide where an Image should go
  *
  * @cur: Current address of the Image, or 0 if it is not in memory yet
@@ -71,13 +131,14 @@ static void booti_parse(const struct Image_header *ih, u64 *text_offsetp,
  * @image_size: Size of the Image in memory
  * @flags: Kernel flags from the header
  * @force_reloc: Place the Image at the start of RAM regardless
+ * @placed: true if booti_alloc() already chose @cur, so it should not be
+ *	randomised again
  * @addrp: Returns the address for the Image, i.e. its base plus text_offset
  * Return: 0 if OK, -ENOSPC if there was not enough lmb space
  */
 static int booti_place(ulong cur, u64 text_offset, u64 image_size, u64 flags,
-		       bool force_reloc, ulong *addrp)
+		       bool force_reloc, bool placed, ulong *addrp)
 {
-	bool placed = false;
 	u64 dst;
 
 	/*
@@ -88,15 +149,25 @@ static int booti_place(ulong cur, u64 text_offset, u64 image_size, u64 flags,
 	 */
 	if (!force_reloc && (flags & BIT(3))) {
 		if (IS_ENABLED(CONFIG_LMB)) {
-			/* Leave the Image where it is, if that will do */
-			if (cur >= text_offset &&
+			bool done = false;
+
+			/*
+			 * Choose a random base unless booti_alloc() already
+			 * did, then leave the Image where it is, if that will
+			 * do, else find somewhere for it
+			 */
+			if (!placed && CONFIG_IS_ENABLED(BOOTI_RANDOMIZE_BASE) &&
+			    !bootargs_has_nokaslr() &&
+			    !booti_random_base(image_size, &dst))
+				done = true;
+			if (!done && cur >= text_offset &&
 			    IS_ALIGNED(cur - text_offset, SZ_2M) &&
 			    !lmb_alloc_addr(cur - text_offset, image_size,
 					    LMB_NONE)) {
 				dst = cur - text_offset;
-				placed = true;
+				done = true;
 			}
-			if (!placed) {
+			if (!done) {
 				dst = lmb_alloc(image_size, SZ_2M);
 				if (!dst)
 					return -ENOSPC;
@@ -113,8 +184,18 @@ static int booti_place(ulong cur, u64 text_offset, u64 image_size, u64 flags,
 	return 0;
 }
 
-int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
-		bool force_reloc)
+/**
+ * setup_image() - Check an Image and decide where it should go
+ *
+ * @image: Address of the Image
+ * @relocated_addr: Returns the address the Image should run from
+ * @size: Returns the size of the Image in memory
+ * @force_reloc: Place the Image at the start of RAM regardless
+ * @placed: true if booti_alloc() chose @image
+ * Return: 0 if OK, -ve on error
+ */
+static int setup_image(ulong image, ulong *relocated_addr, ulong *size,
+		       bool force_reloc, bool placed)
 {
 	u64 image_size, text_offset, flags;
 	struct Image_header *ih;
@@ -132,7 +213,13 @@ int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
 	*size = image_size;
 
 	return booti_place(image, text_offset, image_size, flags, force_reloc,
-			   relocated_addr);
+			   placed, relocated_addr);
+}
+
+int booti_setup(ulong image, ulong *relocated_addr, ulong *size,
+		bool force_reloc)
+{
+	return setup_image(image, relocated_addr, size, force_reloc, false);
 }
 
 /**
@@ -153,9 +240,16 @@ static ulong alloc_size(ulong size)
 int booti_alloc(ulong size, ulong *addrp)
 {
 	phys_addr_t addr;
+	u64 base;
 
 	if (!IS_ENABLED(CONFIG_LMB))
 		return -ENOSYS;
+	if (CONFIG_IS_ENABLED(BOOTI_RANDOMIZE_BASE) &&
+	    !bootargs_has_nokaslr() &&
+	    !booti_random_base(alloc_size(size), &base)) {
+		*addrp = base;
+		return 0;
+	}
 	addr = lmb_alloc(alloc_size(size), SZ_2M);
 	if (!addr)
 		return -ENOSPC;
@@ -167,10 +261,10 @@ int booti_alloc(ulong size, ulong *addrp)
 int booti_check(ulong image, ulong size, ulong *relocated_addr, ulong *sizep)
 {
 	/*
-	 * Release the space so that booti_setup() can reserve exactly what the
+	 * Release the space so that setup_image() can reserve exactly what the
 	 * header says is needed, or move the Image if that is not possible
 	 */
 	lmb_free(image, alloc_size(size));
 
-	return booti_setup(image, relocated_addr, sizep, false);
+	return setup_image(image, relocated_addr, sizep, false, true);
 }
