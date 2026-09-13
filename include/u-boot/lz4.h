@@ -22,6 +22,21 @@
 int ulz4fn(const void *src, size_t srcn, void *dst, size_t *dstn);
 
 /**
+ * lz4_uncompressed_size() - Find the uncompressed size of LZ4 frame data
+ *
+ * An LZ4 frame header can include the content size, but the lz4 tool omits
+ * it unless asked to (--content-size), in which case this fails.
+ *
+ * @src: Source data
+ * @srcn: Length of source data
+ * @sizep: Returns the uncompressed size
+ * Return: 0 if OK, -EINVAL if the data is too short, -EPROTONOSUPPORT if the
+ * magic number or version are not recognised, -EOPNOTSUPP if the size is not
+ * recorded, -E2BIG if it does not fit in ulong
+ */
+int lz4_uncompressed_size(const void *src, size_t srcn, ulong *sizep);
+
+/**
  * LZ4_decompress_safe() - Decompression protected against buffer overflow
  * @source: source address of the compressed data
  * @dest: output buffer address of the uncompressed data
