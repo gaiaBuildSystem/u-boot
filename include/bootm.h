@@ -50,6 +50,8 @@ struct cmd_tbl;
  * is reserved using lmb and this value is updated
  * @kern_comp_size: Maximum size of the decompressed kernel. If 0, the size is
  * calculated based on 4x the size of the kernel, up to a limit of 1G
+ * @kern_placed: true if kern_comp_addr is where the kernel will run from, as
+ *	chosen by booti_alloc(), so it must not be moved after decompression
  * @os_size: Size of the loaded OS image in bytes, 0 if not loaded/not known
  *
  * For zboot:
@@ -80,6 +82,7 @@ struct bootm_info {
 	ulong os_size;
 	ulong kern_comp_addr;
 	ulong kern_comp_size;
+	bool kern_placed;
 
 	/* zboot items */
 #ifdef CONFIG_X86

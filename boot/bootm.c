@@ -388,9 +388,28 @@ static int found_booti_os(struct bootm_info *bmi, enum image_comp_t comp)
 	if (!comp)
 		return 0;
 
-	ret = resolve_os_comp_buf(bmi);
-	if (ret)
-		return log_msg_ret("fbo", ret);
+	/*
+	 * If the uncompressed size is known, the Image can go straight to
+	 * where it will run from and need not be moved afterwards
+	 */
+	if (IS_ENABLED(CONFIG_LMB)) {
+		ulong addr, size;
+		void *buf;
+
+		buf = map_sysmem(images.os.image_start, images.os.image_len);
+		if (!image_decomp_size(comp, buf, images.os.image_len, &size) &&
+		    !booti_alloc(size, &addr)) {
+			bmi->kern_comp_addr = addr;
+			bmi->kern_comp_size = size;
+			bmi->kern_placed = true;
+		}
+		unmap_sysmem(buf);
+	}
+	if (!bmi->kern_placed) {
+		ret = resolve_os_comp_buf(bmi);
+		if (ret)
+			return log_msg_ret("fbo", ret);
+	}
 
 	images.os.load = bmi->kern_comp_addr;
 	images.os.image_len = bmi->kern_comp_size;
@@ -890,7 +909,12 @@ static int bootm_load_os(struct bootm_info *bmi, int boot_progress)
 		ulong image_size;
 		int ret;
 
-		ret = booti_setup(load, &relocated_addr, &image_size, false);
+		if (bmi->kern_placed)
+			ret = booti_check(load, bmi->kern_comp_size,
+					  &relocated_addr, &image_size);
+		else
+			ret = booti_setup(load, &relocated_addr, &image_size,
+					  false);
 		if (ret) {
 			printf("Failed to prep arm64 kernel (err=%d)\n", ret);
 			return BOOTM_ERR_RESET;
