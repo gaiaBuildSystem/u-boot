@@ -467,47 +467,6 @@ __weak int misc_init_r(void)
 }
 #endif
 
-#if IS_ENABLED(CONFIG_FDT_RNG_SEED) && IS_ENABLED(CONFIG_RNG_ROCKCHIP)
-#include <rng.h>
-
-/* Use hardware rng to seed Linux random. */
-__weak int board_rng_seed(struct abuf *buf)
-{
-	struct udevice *dev;
-	ulong len = env_get_ulong("rng_seed_size", 10, 64);
-	u64 *data;
-
-	if (len < 64) {
-		/*
-		 * rng_seed_size should be at least 32 bytes for Linux 5.19+,
-		 * or 64 for older Linux kernel versions
-		 */
-		log_warning("Value for rng_seed_size (%lu) too low, Linux kernel RNG may fail to initialize early\n",
-			    len);
-	}
-
-	data = malloc(len);
-	if (!data) {
-		printf("Out of memory\n");
-		return -ENOMEM;
-	}
-
-	if (uclass_get_device(UCLASS_RNG, 0, &dev) || !dev) {
-		printf("No RNG device\n");
-		return -ENODEV;
-	}
-
-	if (dm_rng_read(dev, data, len)) {
-		printf("Reading RNG failed\n");
-		return -EIO;
-	}
-
-	abuf_init_set(buf, data, len);
-
-	return 0;
-}
-#endif
-
 int mmc_get_env_dev(void)
 {
 	int devnum;
