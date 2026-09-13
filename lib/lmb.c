@@ -783,10 +783,12 @@ int lmb_alloc_addr(phys_addr_t base, phys_size_t size, u32 flags)
 	rgn = lmb_overlaps_region(&lmb.available_mem, base, size);
 	if (rgn >= 0) {
 		/*
-		 * Check if the requested end address is in the same memory
-		 * region we found.
+		 * Check that the requested region lies entirely within the
+		 * memory region we found: it must not start before it, nor
+		 * end after it
 		 */
-		if (lmb_addrs_overlap(lmb_memory[rgn].base,
+		if (base >= lmb_memory[rgn].base &&
+		    lmb_addrs_overlap(lmb_memory[rgn].base,
 				      lmb_memory[rgn].size,
 				      base + size - 1, 1))
 			/* ok, reserve the memory */

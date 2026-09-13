@@ -312,6 +312,37 @@ static int lib_test_lmb_big(struct unit_test_state *uts)
 }
 LIB_TEST(lib_test_lmb_big, 0);
 
+/* Check that lmb_alloc_addr() rejects a region which is not within memory */
+static int lib_test_lmb_alloc_addr_outside(struct unit_test_state *uts)
+{
+	const phys_addr_t ram = 0x40000000;
+	const phys_size_t ram_size = 0x20000000;
+	struct alist *mem_lst, *used_lst;
+	struct lmb store;
+
+	ut_assertok(setup_lmb_test(uts, &store, &mem_lst, &used_lst));
+	ut_asserteq(0, lmb_add(ram, ram_size));
+
+	/* starting before memory but overlapping it */
+	ut_asserteq(-EINVAL, lmb_alloc_addr(ram - 0x100000, 0x200000, LMB_NONE));
+
+	/* ending after memory */
+	ut_asserteq(-EINVAL, lmb_alloc_addr(ram + ram_size - 0x100000, 0x200000,
+					    LMB_NONE));
+
+	/* entirely outside */
+	ut_asserteq(-EFAULT, lmb_alloc_addr(ram - 0x200000, 0x100000, LMB_NONE));
+
+	/* within memory, at the very start */
+	ut_asserteq(0, lmb_alloc_addr(ram, 0x200000, LMB_NONE));
+	ut_asserteq(1, used_lst->count);
+
+	lmb_pop(&store);
+
+	return 0;
+}
+LIB_TEST(lib_test_lmb_alloc_addr_outside, 0);
+
 /* Simulate 512 MiB RAM, allocate a block without previous reservation */
 static int test_noreserved(struct unit_test_state *uts, const phys_addr_t ram,
 			   const phys_addr_t alloc_size, const ulong align)
@@ -749,9 +780,9 @@ static int test_alloc_addr(struct unit_test_state *uts, const phys_addr_t ram)
 		ret = lmb_alloc_addr(ram - 1, 1, LMB_NONE);
 		ut_asserteq(ret, -EFAULT);
 		ret = lmb_alloc_addr(ram - 1, 2, LMB_NOMAP);
-		ut_asserteq(ret, -EEXIST);
+		ut_asserteq(ret, -EINVAL);
 		ret = lmb_alloc_addr(ram - 1, 2, LMB_NOOVERWRITE);
-		ut_asserteq(ret, -EEXIST);
+		ut_asserteq(ret, -EINVAL);
 	}
 
 	lmb_pop(&store);
