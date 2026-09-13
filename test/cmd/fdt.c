@@ -1302,12 +1302,21 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	ut_assert_nextlinen("\tu-boot,version = "); /* Ignore the version string */
 	if (env_bootargs)
 		ut_assert_nextline("\tbootargs = \"%s\";", env_bootargs);
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED))
+		ut_assert_nextlinen("\trng-seed = ");
 	if (!uclass_get_device(UCLASS_RNG, 0, &dev) &&
 	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		ut_assert_nextlinen("\tkaslr-seed = ");
 	ut_assert_nextline("};");
 	ut_assert_console_end();
+
+	/* Check that the seed has the default size of 64 bytes */
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED)) {
+		ut_assertok(run_commandf("fdt get size seedsz /chosen rng-seed"));
+		ut_asserteq(64, env_get_hex("seedsz", 0));
+		ut_assert_console_end();
+	}
 
 	/* Test add new chosen node with initrd */
 	ut_assertok(run_commandf("fdt chosen 0x1234 0x5678"));
@@ -1330,6 +1339,8 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	ut_assert_nextlinen("\tu-boot,version = "); /* Ignore the version string */
 	if (env_bootargs)
 		ut_assert_nextline("\tbootargs = \"%s\";", env_bootargs);
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED))
+		ut_assert_nextlinen("\trng-seed = ");
 	if (!uclass_get_device(UCLASS_RNG, 0, &dev) &&
 	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
