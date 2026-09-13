@@ -1195,6 +1195,12 @@ unmap_initrd:
 unmap_image:
 		unmap_sysmem(image_buf);
 		tcg2_measurement_term(dev, &elog, ret != 0);
+
+		/* Record the log so that it can be passed to the OS */
+		if (!ret && elog.log) {
+			images->tpm_log = map_to_sysmem(elog.log);
+			images->tpm_log_len = elog.log_position;
+		}
 	}
 
 	return ret;

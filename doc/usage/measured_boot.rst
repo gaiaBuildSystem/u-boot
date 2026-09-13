@@ -52,6 +52,16 @@ Requirements
   a reserved memory region or "linux,sml-base" and "linux,sml-size"
   indicating the address and size of the memory region. An example can be
   found in arch/sandbox/dts/test.dts
-* The operating system must also be configured to use the memory regions
-  specified in the U-Boot device-tree in order to make use of the event
-  log.
+
+Passing the event log to the operating system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After measuring, U-Boot adds "linux,sml-base" and "linux,sml-size" to the TPM
+node of the devicetree it passes to the operating system, giving the address
+and size of the log, and reserves that memory so that it survives until the
+kernel's TPM driver reads it. This is the same mechanism Linux uses for a
+firmware-provided log on any non-EFI boot, so it works whatever devicetree
+the OS is booted with: it need not be U-Boot's own. The node is matched by
+the path of U-Boot's TPM node or, failing that, by its compatible string; if
+the devicetree has no TPM node, a warning is printed and the OS will not see
+the log.
