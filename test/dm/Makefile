@@ -114,6 +114,7 @@ obj-$(CONFIG_$(PHASE_)DEBUG_DEV) += debug.o
 obj-$(CONFIG_$(PHASE_)DM_RNG) += rng.o
 obj-$(CONFIG_DM_RTC) += rtc.o
 obj-$(CONFIG_SCMI_FIRMWARE) += scmi.o
+obj-$(CONFIG_NVME_SANDBOX) += nvme.o
 obj-$(CONFIG_SCSI) += scsi.o
 obj-$(CONFIG_DM_SERIAL) += serial.o
 obj-$(CONFIG_DM_SPI_FLASH) += sf.o

@@ -9,6 +9,16 @@ config NVME
 	  This option enables support for NVM Express devices.
 	  It supports basic functions of NVMe (read/write).
 
+config NVME_SANDBOX
+	bool "Emulated NVMe controller for sandbox"
+	depends on NVME && SANDBOX
+	default y if SANDBOX
+	help
+	  This provides an emulated NVMe controller, so that the NVMe driver
+	  and the nvme command can be tested without real hardware. It speaks
+	  the register and queue interface which the driver expects and keeps
+	  the data in a file on the host.
+
 config NVME_APPLE
 	bool "Apple NVMe controller support"
 	depends on ARCH_APPLE
