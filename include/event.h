@@ -14,6 +14,8 @@
 #include <linker_lists.h>
 #include <linux/types.h>
 
+struct abuf;
+
 /**
  * enum event_t - Types of events supported by U-Boot
  *
@@ -227,6 +229,16 @@ enum event_t {
 	EVT_OF_LIVE_BUILT,
 
 	/**
+	 * @EVT_RNG_SEED:
+	 * Sent while preparing the devicetree for the OS, to obtain the seed
+	 * for its /chosen/rng-seed property. Its parameter is of type struct
+	 * event_rng_seed, which points to the buffer to fill. A handler which
+	 * has a better source of entropy than the RNG uclass fills it; if no
+	 * handler does, the seed is read from the first RNG device.
+	 */
+	EVT_RNG_SEED,
+
+	/**
 	 * @EVT_COUNT:
 	 * This constants holds the maximum event number + 1 and is used when
 	 * looping over all event classes.
@@ -243,6 +255,15 @@ union event_data {
 	struct event_data_test {
 		int signal;
 	} test;
+
+	/**
+	 * struct event_rng_seed - seed for /chosen/rng-seed
+	 *
+	 * @buf: Buffer to fill with the seed (empty on entry)
+	 */
+	struct event_rng_seed {
+		struct abuf *buf;
+	} rng_seed;
 
 	/**
 	 * struct event_dm - driver model event

@@ -7,6 +7,8 @@
 
 #include <console.h>
 #include <env.h>
+#include <abuf.h>
+#include <event.h>
 #include <fdt_support.h>
 #include <mapmem.h>
 #include <asm/global_data.h>
@@ -1300,12 +1302,21 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	ut_assert_nextlinen("\tu-boot,version = "); /* Ignore the version string */
 	if (env_bootargs)
 		ut_assert_nextline("\tbootargs = \"%s\";", env_bootargs);
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED))
+		ut_assert_nextlinen("\trng-seed = ");
 	if (!uclass_get_device(UCLASS_RNG, 0, &dev) &&
 	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
 		ut_assert_nextlinen("\tkaslr-seed = ");
 	ut_assert_nextline("};");
 	ut_assert_console_end();
+
+	/* Check that the seed has the default size of 64 bytes */
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED)) {
+		ut_assertok(run_commandf("fdt get size seedsz /chosen rng-seed"));
+		ut_asserteq(64, env_get_hex("seedsz", 0));
+		ut_assert_console_end();
+	}
 
 	/* Test add new chosen node with initrd */
 	ut_assertok(run_commandf("fdt chosen 0x1234 0x5678"));
@@ -1328,6 +1339,8 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	ut_assert_nextlinen("\tu-boot,version = "); /* Ignore the version string */
 	if (env_bootargs)
 		ut_assert_nextline("\tbootargs = \"%s\";", env_bootargs);
+	if (IS_ENABLED(CONFIG_FDT_RNG_SEED))
+		ut_assert_nextlinen("\trng-seed = ");
 	if (!uclass_get_device(UCLASS_RNG, 0, &dev) &&
 	    !IS_ENABLED(CONFIG_MEASURED_BOOT) &&
 	    !IS_ENABLED(CONFIG_ARMV8_SEC_FIRMWARE_SUPPORT))
@@ -1338,6 +1351,51 @@ static int fdt_test_chosen(struct unit_test_state *uts)
 	return 0;
 }
 FDT_TEST(fdt_test_chosen, UTF_CONSOLE);
+
+/* Seed which the test handler for EVT_RNG_SEED provides, if not NULL */
+static const u8 *rng_seed_data;
+static int rng_seed_len;
+
+static int h_rng_seed(void *ctx, struct event *event)
+{
+	struct abuf *buf = event->data.rng_seed.buf;
+
+	if (!rng_seed_data)
+		return 0;
+	if (!abuf_realloc(buf, rng_seed_len))
+		return -ENOMEM;
+	memcpy(abuf_data(buf), rng_seed_data, rng_seed_len);
+
+	return 0;
+}
+EVENT_SPY_FULL(EVT_RNG_SEED, h_rng_seed);
+
+/* Test that a board can provide the rng-seed through EVT_RNG_SEED */
+static int fdt_test_chosen_rng_seed(struct unit_test_state *uts)
+{
+	static const u8 seed[] = { 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde,
+				   0xf0 };
+	char fdt[4096];
+	ulong addr;
+
+	if (!IS_ENABLED(CONFIG_FDT_RNG_SEED) || !IS_ENABLED(CONFIG_EVENT))
+		return -EAGAIN;
+
+	ut_assertok(make_test_fdt(uts, fdt, sizeof(fdt), &addr));
+	fdt_shrink_to_minimum(fdt, 4096);	/* Resize with 4096 extra bytes */
+
+	rng_seed_data = seed;
+	rng_seed_len = sizeof(seed);
+	ut_assertok(run_commandf("fdt chosen"));
+	rng_seed_data = NULL;
+
+	ut_assertok(run_commandf("fdt print /chosen rng-seed"));
+	ut_assert_nextlinen("rng-seed = <0x12345678 0x9abcdef0>");
+	ut_assert_console_end();
+
+	return 0;
+}
+FDT_TEST(fdt_test_chosen_rng_seed, UTF_CONSOLE);
 
 static int fdt_test_apply(struct unit_test_state *uts)
 {
