@@ -514,6 +514,17 @@ config CMD_BOOTEFI
 	help
 	  Boot an EFI image from memory.
 
+config CMD_BOOTEDK
+	bool "bootedk"
+	depends on EFI_APP
+	help
+	  Boot an EFI_STUB kernel image from memory using the firmware's
+	  Boot Services (LoadImage/StartImage), exactly as L4TLauncher in
+	  edk2-nvidia does.  U-Boot itself must be running as an EFI application;
+	  this command does not require CONFIG_EFI_LOADER or any other EFI loader
+	  support and instead calls the firmware's own Boot Services directly,
+	  which is available to any UEFI client including U-Boot in app mode.
+
 if CMD_BOOTEFI
 config CMD_BOOTEFI_BINARY
 	bool "Allow booting an EFI binary directly"
