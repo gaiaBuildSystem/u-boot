@@ -131,16 +131,16 @@ static efi_status_t install_initrd_handle(efi_handle_t *handlep)
 }
 
 /*
- * set_kernel_cmdline() - attach an ASCII/UTF-8 command line as the loaded
- * image's LoadOptions.  The Linux EFI stub on arm64 reads its boot arguments
- * from ImageInfo->LoadOptions/Size.
+ * set_kernel_cmdline() - attach a UTF-16 command line as the loaded image's
+ * LoadOptions.  The Linux EFI stub on arm64 reads its boot arguments from
+ * ImageInfo->LoadOptions/Size.
  */
 static int set_kernel_cmdline(efi_handle_t handle, const char *cmdline)
 {
 	struct efi_boot_services *boot = efi_get_boot();
 	efi_guid_t loaded_image_guid  = EFI_LOADED_IMAGE_PROTOCOL_GUID;
 	struct efi_loaded_image *li;
-	u16 *u16_buf;
+	u16 *u16_buf, *pos;
 	size_t n16, len;
 
 	if (!cmdline || !cmdline[0])
@@ -154,7 +154,8 @@ static int set_kernel_cmdline(efi_handle_t handle, const char *cmdline)
 		return -ENOMEM;
 	}
 
-	if (utf8_utf16_strcpy(&u16_buf, cmdline) < 0) {
+	pos = u16_buf;
+	if (utf8_utf16_strcpy(&pos, cmdline) < 0) {
 		free(u16_buf);
 		return -EINVAL;
 	}
@@ -167,7 +168,7 @@ static int set_kernel_cmdline(efi_handle_t handle, const char *cmdline)
 	}
 
 	li->load_options      = u16_buf;
-	li->load_options_size = n16 * sizeof(u16) + sizeof(u16); /* incl. NUL */
+	li->load_options_size = len;
 	log_debug("## Kernel cmdline: %s\n", cmdline);
 	return 0;
 }
@@ -244,6 +245,8 @@ static int do_bootedk(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (!boot)
 		return log_msg_ret("## not running under EFI firmware", -ENOSYS);
 
+	cmdline = env_get("bootargs");
+
 	kaddr = hextoul(argv[1], NULL);
 	size  = pe_image_file_size((const void *)(uintptr_t)kaddr);
 	log_info("## Kernel at %lx (size=%lu)\n",
@@ -251,8 +254,6 @@ static int do_bootedk(struct cmd_tbl *cmdtp, int flag, int argc,
 	if (!size)
 		return log_msg_ret("## kernel is not a valid PE-COFF image",
 				   -EINVAL);
-
-	cmdline = env_get("bootargs");
 
 	if (fdt_addr) {
 		ret = boot->install_configuration_table(&efi_guid_fdt,
@@ -277,6 +278,11 @@ static int do_bootedk(struct cmd_tbl *cmdtp, int flag, int argc,
 		}
 	}
 
+	/*
+	 * Load the kernel image into a new object.  This installs the Loaded
+	 * Image Protocol on @kernel_handle so that set_kernel_cmdline() can
+	 * attach boot arguments via the Loaded Image Protocol.
+	 */
 	log_info("## Loading kernel image\n");
 	ret = boot->load_image(true, efi_get_parent_image(), NULL,
 			       (void *)(uintptr_t)kaddr, size, &kernel_handle);
