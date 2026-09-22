@@ -9,15 +9,20 @@
 
 #define LOG_CATEGORY LOGC_EFI
 
+#include <asm/io.h>
 #include <charset.h>
 #include <command.h>
 #include <env.h>
 #include <efi.h>
 #include <efi_api.h>
+#include <linux/sizes.h>
 #include <log.h>
 #include <malloc.h>
 #include <pe.h>
 #include <vsprintf.h>
+
+#define FDT_INTERNAL
+#include "../scripts/dtc/libfdt/libfdt.h"
 
 /*
  * Vendor GUID used by Linux (see arm64/booting.rst in the kernel tree) to find
@@ -184,6 +189,8 @@ static int do_bootedk(struct cmd_tbl *cmdtp, int flag, int argc,
 	efi_handle_t kernel_handle = 0;
 	const char *cmdline;
 	u64 kaddr, size, fdt_addr = 0;
+	efi_physical_addr_t fdt_phys = 0;
+	u32 fdt_pages = 0;
 	int ret, rc = -EFAULT;
 
 	if (argc < 2 || argc > 5) {
@@ -255,11 +262,57 @@ static int do_bootedk(struct cmd_tbl *cmdtp, int flag, int argc,
 		return log_msg_ret("## kernel is not a valid PE-COFF image",
 				   -EINVAL);
 
+	/*
+	 * Load the kernel image into a new object.  This installs the Loaded
+	 * Image Protocol on @kernel_handle so that set_kernel_cmdline() can
+	 * attach boot arguments via the Loaded Image Protocol.
+	 */
+	log_info("## Loading kernel image\n");
+	ret = boot->load_image(true, efi_get_parent_image(), NULL,
+			       (void *)(uintptr_t)kaddr, size, &kernel_handle);
+	if (ret != EFI_SUCCESS) {
+		log_err("## Failed to load kernel: r=%d\n", ret);
+		return -EFAULT;
+	}
+
 	if (fdt_addr) {
+		const u32 *fdh = (const void *)(uintptr_t)fdt_addr;
+		u32 magic, fdt_size;
+
+		magic    = be32_to_cpu(fdh[0]);
+		fdt_size = be32_to_cpu(fdh[1]);
+		if (magic != 0xd00dfeed || !fdt_size || fdt_size > SZ_16M) {
+			log_err("## Invalid FDT at %lx\n", (ulong)fdt_addr);
+			return -EINVAL;
+		}
+
+		/*
+		 * Allocate 4x the tree size and open it into that buffer,
+		 * exactly like EDK2's DtPlatformLoadDtb()/L4TLauncher.  The
+		 * firmware applies in-place fixups/overlays to the installed
+		 * FDT which grow the structure block; without headroom those
+		 * writes corrupt the tree.
+		 */
+		fdt_pages = (4 * fdt_size + EFI_PAGE_SIZE - 1) / EFI_PAGE_SIZE;
+		ret = boot->allocate_pages(EFI_ALLOCATE_ANY_PAGES,
+					   EFI_LOADER_DATA, fdt_pages,
+					   &fdt_phys);
+		if (ret != EFI_SUCCESS || !fdt_phys) {
+			log_err("## Failed to allocate FDT memory\n");
+			return -ENOMEM;
+		}
+		memset((void *)(uintptr_t)fdt_phys, 0, fdt_pages << EFI_PAGE_SHIFT);
+		ret = fdt_open_into(fdh, (void *)(uintptr_t)fdt_phys,
+				    fdt_pages << EFI_PAGE_SHIFT);
+		if (ret) {
+			log_err("## Failed to open FDT: %s\n", fdt_strerror(ret));
+			return -EFAULT;
+		}
+
 		ret = boot->install_configuration_table(&efi_guid_fdt,
-							(void *)(uintptr_t)fdt_addr);
-		log_info("## Installed FDT config table at %lx\n",
-			 (ulong)fdt_addr);
+							(void *)(uintptr_t)fdt_phys);
+		log_info("## Installed FDT config table at %lx (size=%u)\n",
+			 (ulong)fdt_phys, fdt_size);
 		if (ret != EFI_SUCCESS) {
 			log_err("## Failed to install FDT: r=%d\n", ret);
 			return -EFAULT;
@@ -278,22 +331,23 @@ static int do_bootedk(struct cmd_tbl *cmdtp, int flag, int argc,
 		}
 	}
 
-	/*
-	 * Load the kernel image into a new object.  This installs the Loaded
-	 * Image Protocol on @kernel_handle so that set_kernel_cmdline() can
-	 * attach boot arguments via the Loaded Image Protocol.
-	 */
-	log_info("## Loading kernel image\n");
-	ret = boot->load_image(true, efi_get_parent_image(), NULL,
-			       (void *)(uintptr_t)kaddr, size, &kernel_handle);
-	if (ret != EFI_SUCCESS) {
-		log_err("## Failed to load kernel: r=%d\n", ret);
-		return -EFAULT;
-	}
-
 	rc = set_kernel_cmdline(kernel_handle, cmdline);
 	if (rc < 0)
 		return rc;
+
+	if (fdt_phys) {
+		const u8 *p = (const void *)(uintptr_t)fdt_phys;
+
+		log_info("## FDT pre-boot: %02x%02x%02x%02x %02x%02x%02x%02x\n",
+			 p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7]);
+		/* Ensure the FDT is visible to the kernel after EBS */
+		flush_dcache_range((unsigned long)fdt_phys,
+				   (unsigned long)(fdt_phys +
+						   (fdt_pages << EFI_PAGE_SHIFT)));
+	}
+
+	log_info("## EFI config tables:\n");
+	efi_show_tables(efi_get_sys_table());
 
 	log_info("## Starting image\n");
 	ret = boot->start_image(kernel_handle, NULL, NULL);
