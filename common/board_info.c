@@ -68,6 +68,12 @@ int show_board_info(void)
 		if (IS_ENABLED(CONFIG_SYSINFO))
 			ret = try_sysinfo();
 
+		/* Use the manually configured model, if any */
+		if (ret && CONFIG_MANUAL_MODEL[0]) {
+			printf("Model: %s\n", CONFIG_MANUAL_MODEL);
+			ret = 0;
+		}
+
 		/* Fail back to the main 'model' if available */
 		if (ret) {
 			const char *model;

@@ -656,6 +656,14 @@ config DISPLAY_BOARDINFO_LATE
 	  the relocation phase. The board function checkboard() is called to do
 	  this.
 
+config MANUAL_MODEL
+	string "Manual board model string"
+	default ""
+	help
+	  If not empty, this string is shown as the board model, instead of
+	  the 'model' property of the root device tree node. A sysinfo driver
+	  (if enabled and successful) still takes precedence.
+
 menu "Start-up hooks"
 
 config CYCLIC
