@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * EFI app on the Arduino Monza (QCS8300). Qualcomm's UEFI provides no
+ * graphics output protocol, so U-Boot drives the HDMI output itself.
+ */
+
+#include "efi-arm_app.dts"
+
+/ {
+	model = "EFI ARM Application (Arduino Monza)";
+
+	/delete-node/ efi-fb;
+
+	hdmi {
+		compatible = "arduino,monza-efi-hdmi";
+	};
+};

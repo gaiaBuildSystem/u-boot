@@ -16,4 +16,48 @@ config BOARD_SPECIFIC_OPTIONS # dummy
 config SYS_LDSCRIPT
 	default "arch/arm/lib/elf_aarch64_efi.lds"
 
+config QCOM_MDSS_EFI
+	bool
+	depends on ARM64
+	help
+	  Code to drive the Qualcomm QCS8300 (Monaco) display hardware
+	  directly from the EFI app: RPMh votes, display clocks, DSI0, the
+	  DPU and an ADV7535 DSI-to-HDMI bridge.
+
+config VIDEO_QCOM_MDSS_EFI
+	bool "HDMI display for the Arduino Monza (QCS8300)"
+	depends on ARM64 && VIDEO
+	select QCOM_MDSS_EFI
+	help
+	  Drive the HDMI output of the Arduino Monza board (DSI0 and an
+	  ADV7535 bridge) at 1280x720, since Qualcomm's UEFI there provides
+	  no graphics output protocol. Bound from an
+	  "arduino,monza-efi-hdmi" devicetree node. Scanout stops at
+	  ExitBootServices() so the OS display driver starts cleanly.
+
+config VIDEO_QCOM_MDSS_EFI_KEEP_SCANOUT
+	bool "Keep the display running into the OS"
+	depends on VIDEO_QCOM_MDSS_EFI
+	help
+	  Leave the display scanning out after ExitBootServices(), so the
+	  last image (e.g. a splash logo) stays on screen until the OS
+	  display driver takes over. The framebuffer is allocated as EFI
+	  reserved memory so the OS never reuses it, and the SMMU stream
+	  mapping is left in place; Linux keeps such boot mappings as bypass.
+	  No simple-framebuffer is passed to the OS.
+
+	  For the image to survive until the Linux display driver probes,
+	  Linux must not turn off the display clocks and power domain as
+	  unused before that, e.g. boot with clk_ignore_unused.
+
+config CMD_QCOM_MDSS_PROBE
+	bool "mdssprobe command for Qualcomm QCS8300 display bring-up"
+	depends on ARM64
+	select QCOM_MDSS_EFI
+	help
+	  Add the 'mdssprobe' command, which runs the QCS8300 (Monaco)
+	  display bring-up step by step, printing what it does, and can
+	  inspect clocks, RPMh, the i2c bus and the SMMU. This is a
+	  bring-up aid and touches hardware owned by the firmware.
+
 endif
